@@ -9,10 +9,11 @@ const user = {
 
 export default function Home() {
   return (
-    <main className="">
-      <div className="container mx-auto">
-        <div className="pt-20">
-          <h1 className="text-5xl font-bold pt-20">
+    <main className="h-screen">
+      <div className="sm:px-20 md:px-30">
+        <div className="pt-10">
+          <h1 className="text-5xl font-bold pt-20 sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl"> 
+          {/* !!!!make ^^ text bigger */}
             {/* <img
               className="avatar"
               src={user.imageUrl}
@@ -32,7 +33,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <div className="container mx-auto">
+      <div className="container mx-auto pt-10">
         <div className="grid grid-cols-4 gap-4 grid-rows-2">
           <div className="col-span-4 flex justify-around">
             <button type="button" className="btn bg-green-300">

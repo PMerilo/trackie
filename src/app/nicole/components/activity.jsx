@@ -4,8 +4,7 @@ import React from 'react';
 const Activity = (props) => {
   function handleClick(e) {
     let product = props.product
-    var yes = e.target
-    console.log(e.target.key)
+    console.log(product.id)
   }
     return (
       <a className="card w-4/5 bg-base-100 shadow-xl" key={props.product.id} onClick={handleClick}>
@@ -18,7 +17,7 @@ const Activity = (props) => {
       </svg>
       </div>
         <div className="card-body bg-lime-200 col-span-3">
-          {/* <h2 className="card-title">{props.product}</h2> */}
+          <h2 className="card-title">{props.product.title}</h2>
           <p>Description</p>
           <div className="card-actions justify-end">
             {/* <button

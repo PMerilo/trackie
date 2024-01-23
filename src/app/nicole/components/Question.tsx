@@ -1,30 +1,27 @@
 import React from "react";
 
 interface Props {
-  question: string;
-  choices: string[];
+  hobbies: any[];
   answer: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (answer: number) => void;
 }
 
-const Question: React.FC<Props> = ({ question, choices, answer, onAnswer }) => {
+const Question: React.FC<Props> = (props) => {
+  console.log("test")
+  // console.log(props.hobbies[0])
   return (
     <div
-      className="d-flex 
-                        justify-content-center 
-                        align-center 
-                        text-center 
-                        flex-column"
+      className=""
     >
-      <h2 className="">{question}</h2>
+      <h2 className="text-center">hello</h2>
       <div className="">
-        {choices.map((choice) => (
+        {props.hobbies && props.hobbies.map((hobby) => (
           // eslint-disable-next-line react/jsx-key
           <button
             className="btn btn-success m-2"
-            onClick={() => onAnswer(choice)}
+            onClick={() => props.onAnswer(parseInt(hobby.hobbyId))}
           >
-            {choice}
+            {hobby.name}
           </button>
         ))}
       </div>

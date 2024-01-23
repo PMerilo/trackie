@@ -17,14 +17,8 @@ const products = [
   { title: "Peach", id: 4 },
 ];
 
-function handleClick() {
-  var yes = (document.getElementById('hobbyId') as HTMLInputElement).value;
-  alert("You clicked me! {yes}");
-  console.log(yes)
-}
-
 const listItems = products.map((product) => (
-  <Activity key={product}></Activity>
+  <Activity product={product} key={product.id}></Activity>
   // <button
   //   key={product.id}
   //   className="btn w-4/5 bg-lime-300 btn-wide sm:btn-sm md:btn-md lg:btn-lg"

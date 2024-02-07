@@ -3,20 +3,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import Webcam from "react-webcam";
 
+// Defines the shape of the action data expected from the API.
 interface ActionData {
   [key: string]: number;
 }
 
 export default function Home() {
+  // Flask API URL, either from the environment variable or a default value.
   const FLASK_API_URL =
-    process.env.REACT_APP_FLASK_API_URL ||
-    "https://663b-180-129-10-233.ngrok-free.app";
+    process.env.REACT_APP_FLASK_API_URL || "http://localhost:80";
+
+  // State variables to manage the application state.
   const [isCameraEnabled, setCameraEnabled] = useState(false);
   const [actionData, setActionData] = useState<ActionData | null>(null);
-  const webcamRef = useRef<Webcam>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
 
+  // Ref to access the webcam component directly.
+  const webcamRef = useRef<Webcam>(null);
+
+  // Function to capture the webcam image, convert it to a blob, and send it to the API.
   const processImageAndSendToAPI = async () => {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
@@ -49,6 +55,7 @@ export default function Home() {
     }
   };
 
+  // Function to start real-time action detection.
   const startRealTimeDetection = () => {
     if (webcamRef.current) {
       const id = setInterval(async () => {
@@ -60,6 +67,7 @@ export default function Home() {
     }
   };
 
+  // Function to stop real-time action detection.
   const stopRealTimeDetection = () => {
     if (intervalId) {
       clearInterval(intervalId);
@@ -67,6 +75,7 @@ export default function Home() {
     }
   };
 
+  // Function to toggle real-time action detection on or off.
   const toggleRealTimeDetection = () => {
     if (isDetecting) {
       stopRealTimeDetection();
@@ -78,18 +87,21 @@ export default function Home() {
     setIsDetecting((prev) => !prev);
   };
 
+  // useEffect to clean up the interval when the component unmounts or intervalId changes.
   useEffect(() => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [intervalId]);
 
+  // Handler for changes in the camera enable/disable checkbox.
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.name === "Camera") {
       setCameraEnabled(e.target.checked);
     }
   };
 
+  // Render the component UI.
   return (
     <>
       <main className="min-h-screen bg-black">

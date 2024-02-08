@@ -20,12 +20,18 @@ export default function Home() {
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
 
   // Ref to access the webcam component directly.
-  const webcamRef = useRef<Webcam>(null);
+  const webcamRef = useRef<HTMLVideoElement>(null);
 
   // Function to capture the webcam image, convert it to a blob, and send it to the API.
   const processImageAndSendToAPI = async () => {
     if (webcamRef.current) {
-      const imageSrc = webcamRef.current.getScreenshot();
+      // const imageSrc = webcamRef.current.getScreenshot();
+
+      const c = document.createElement("canvas");
+      const ctx = c.getContext("2d");
+      ctx?.drawImage(webcamRef.current, 10, 10);
+      const imageSrc = c.toDataURL();
+
       if (imageSrc) {
         const base64Response = await fetch(imageSrc);
         const blob = await base64Response.blob();
@@ -140,7 +146,14 @@ export default function Home() {
               style={{ height: "360px" }}
             >
               {isCameraEnabled ? (
-                <Webcam ref={webcamRef} />
+                // <Webcam ref={webcamRef} />
+                <video
+                  ref={webcamRef}
+                  width="640"
+                  height="480"
+                  // crossOrigin="anonymous"
+                  src="http://172.27.176.113:4747/"
+                />
               ) : (
                 <div className="w-full flex justify-center items-center bg-gray-200">
                   <span className="text-gray-500">Please click on Camera</span>

@@ -20,5 +20,11 @@ TODO: add description
   - Can implement option to switch between models
   - Accuracy is relative. ~10% range compared to best models
 
+  - What have you done
+  - How did you do it
+  - Final results
+  - demo
+  - Future work
+
 
 

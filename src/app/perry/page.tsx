@@ -1,17 +1,29 @@
-import Image from 'next/image'
+'use client'
+
+import { Speechbubble } from "./components/Speechbubble"
+import { Recorder } from "./components/Recorder"
+import { useEffect, useRef, useState } from "react"
 
 export default function Home() {
+  const [resultList, setResultList] = useState<SpeechRecognitionResultList>()
+
+  const messages = useRef<any>(null)
+
+  useEffect(() => {
+    messages?.current?.lastElementChild?.scrollIntoView({behavior: 'smooth'})
+  }, [resultList])
   return (
     <main>
-      <div className="hero min-h-screen">
-        <div className="hero-content text-center">
-          <div className="">
-            <h1 className="text-5xl font-bold">Perry's Page</h1>
-            <div className="py-6 grid gap-4">
-              <button className="btn btn-primary btn-outline">Login</button>
-              <button className="btn btn-secondary btn-outline">Sign Up</button>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 p-8 gap-16 w-full h-screen">
+        <div className="flex h-full justify-evenly flex-grow card bg-base-300 rounded-box place-items-center">
+          WebCam
+          <Recorder onResult={setResultList}></Recorder>
+          <div id="outputText" className=""></div>
+        </div>
+        <div className="flex h-full flex-grow card bg-base-300 rounded-box p-4 overflow-y-scroll" ref={messages}>
+          { 
+            resultList && Array.from(Array(resultList.length).keys()).map((index) => <Speechbubble key={index} content={resultList[index][0].transcript}/>)
+          }
         </div>
       </div>
     </main>

@@ -15,4 +15,20 @@ model User {
   email String @unique
   password String
   name String?
+  tasks Task[]
+}
+model Task {
+  id    Int    @id @default(autoincrement())
+  title  String
+  time DateTime?
+  steps Step[]
+  creatorId Int
+  createdBy User @relation(fields: [creatorId], references: [id])
+}
+model Step {
+  id    Int    @id @default(autoincrement())
+  content  String
+  completed  Boolean @default(false)
+  taskId Int
+  task Task @relation(fields: [taskId], references: [id])
 }

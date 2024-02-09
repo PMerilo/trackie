@@ -5,8 +5,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';  // For setting the document head tags
 import Webcam from 'react-webcam';  // React component for webcam functionality
 import ChartDataLabels from 'chartjs-plugin-datalabels';  // Plugin for Chart.js
+import Link from 'next/link';
+import 'chartjs-adapter-date-fns';
+import { parse } from 'date-fns';
 import { VideoCameraIcon, ViewfinderCircleIcon, ViewColumnsIcon, EyeIcon, FaceSmileIcon } from '@heroicons/react/24/outline';  // Icons for UI
-import { Bar } from 'react-chartjs-2';  // Bar chart component from Chart.js
+import { Bar, Line } from 'react-chartjs-2';  // Bar chart component from Chart.js
 import { Chart, ChartOptions, Scale, registerables } from 'chart.js';  // Chart.js library
 
 // Registering components and plugins for Chart.js
@@ -16,6 +19,11 @@ Chart.register(ChartDataLabels);
 // TypeScript interfaces for typing the emotion data and colors
 interface EmotionData {
   [key: string]: number;
+}
+
+interface EmotionHistoryEntry {
+  timestamp: string;
+  emotions: EmotionData; // Assuming EmotionData is already defined as shown in your initial code
 }
 
 type EmotionColors = {
@@ -29,6 +37,8 @@ export default function Home() {
   // States for camera, emotions, loading, errors, and intervals
   const [isCameraEnabled, setCameraEnabled] = useState(false);
   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
+  const [emotionHistory, setEmotionHistory] = useState<EmotionHistoryEntry[]>([]);
+  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const webcamRef = useRef<Webcam>(null);
@@ -38,6 +48,7 @@ export default function Home() {
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [highestEmotion, setHighestEmotion] = useState({emotion: '', value: 0});
   const buttonText = isDetecting ? 'Stop Real-Time Detection' : selectedFile ? 'Upload and Detect Emotions' : 'Start Real-Time Detection';
+  
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,6 +79,17 @@ export default function Home() {
         const data = await response.json();
         console.log('Emotion data received:', data); // Debugging line
         setEmotionData(data);
+        const timestamp = new Date().toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore' });
+        setEmotionHistory((prevHistory) => {
+          const updatedHistory = [
+            ...prevHistory,
+            { timestamp, emotions: data }
+          ];
+          console.log('Previous emotionHistory:', prevHistory);
+          console.log('New emotionHistory entry:', { timestamp, emotions: data });
+          console.log('Updated emotionHistory:', updatedHistory);
+          return updatedHistory;
+        })
       } catch (error) {
         let errorMessage = 'Error uploading file: ';
         if (error instanceof Error) {
@@ -116,6 +138,17 @@ export default function Home() {
       const data = await response.json() as EmotionData;
       console.log('Received data:', data); // Log the received data
       setEmotionData(data);
+      const timestamp = new Date().toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore' });
+      setEmotionHistory((prevHistory) => {
+        const updatedHistory = [
+          ...prevHistory,
+          { timestamp, emotions: data }
+        ];
+        console.log('Previous emotionHistory:', prevHistory);
+        console.log('New emotionHistory entry:', { timestamp, emotions: data });
+        console.log('Updated emotionHistory:', updatedHistory);
+        return updatedHistory;
+      })
       console.log('Updated emotionData state:', emotionData); // Log the updated state
     } catch (error: any) {
         setError('Failed to send image to API.');
@@ -137,6 +170,8 @@ export default function Home() {
     }
   };
 
+  
+
   // Function to start real-time emotion detection
   const startRealTimeDetection = () => {
     if (webcamRef.current) {
@@ -155,36 +190,38 @@ export default function Home() {
 
   // Function to stop real-time emotion detection
   const stopRealTimeDetection = () => {
-    // Clear the interval set by startRealTimeDetection
     if (intervalId) {
       clearInterval(intervalId);
       setIntervalId(null);
+      setIsDetecting(false);
+  
+      // Wait for the last set of emotions to be processed before showing the modal
+      setTimeout(() => {
+        setShowModal(true);
+        console.log('Showing emotion over time modal');
+      }, 2000); // Adjust timeout as needed
     }
   };
   
   // Function to toggle real-time emotion detection on or off
   const toggleRealTimeDetection = () => {
+    console.log(`Toggling real-time detection. Currently detecting: ${isDetecting}`);
     if (isDetecting) {
       stopRealTimeDetection();
     } else {
-      // Check if webcamRef.current is not null before starting real-time detection
       if (webcamRef.current) {
         startRealTimeDetection();
       }
     }
     setIsDetecting((prev) => !prev);
   };
+  
 
   // This effect updates the highest emotion when emotionData changes
   useEffect(() => {
-    if (emotionData) {
-      const sortedEmotions = Object.entries(emotionData).sort((a, b) => b[1] - a[1]);
-      if (sortedEmotions.length > 0) {
-        const [emotion, value] = sortedEmotions[0];
-        setHighestEmotion({emotion, value});
-      }
-    }
-  }, [emotionData]);
+    console.log('Component updated with emotionHistory:', emotionHistory);
+    console.log('Chart data for rendering:', chartData2);
+  }, [emotionHistory]);
 
     // Combined function to handle both real-time detection and file upload
     const handleAction = async () => {
@@ -211,6 +248,9 @@ export default function Home() {
 
   // Function to convert emotion data to chart format
   const getChartData = (emotionData: EmotionData) => {
+    if (!emotionData) {
+      return { labels: [], datasets: [] };
+    }
     const labels = Object.keys(emotionData);
     const dataValues = labels.map(label => emotionData[label]);
     const chartData = {
@@ -226,6 +266,27 @@ export default function Home() {
     };
     return chartData;
   };
+
+  const chartData2 = emotionHistory.length > 0 ? {
+    labels: emotionHistory.map(entry => {
+      const parsedDate = parse(entry.timestamp, 'hh:mm:ss a', new Date());
+      console.log('Parsed date:', parsedDate);
+      return parsedDate;
+    }),
+    datasets: Object.keys(emotionHistory[0].emotions).map(key => {
+      return {
+        label: key,
+        // Make sure to multiply by 100 to convert to percentages
+        data: emotionHistory.map(entry => entry.emotions[key] * 100),
+        fill: 'origin',
+        backgroundColor: chartDataStyle(key as keyof EmotionData),
+        borderColor: chartDataStyle(key as keyof EmotionData),
+        pointBackgroundColor: chartDataStyle(key as keyof EmotionData),
+        tension: 0.3
+      };
+    })
+  } : { labels: [], datasets: [] };
+  
 
   // Options for the bar chart
   const options: ChartOptions<"bar"> = {
@@ -285,6 +346,70 @@ export default function Home() {
     }
   };
 
+  const options2: ChartOptions<"line"> = {
+    scales: {
+      x: {
+        type: 'time',
+        time: {
+          // Specify the display format for the ticks on the X-axis
+          displayFormats: {
+            minute: 'hh:mm a', // Use a format that spreads out the labels appropriately
+          },
+        },
+        title: {
+          display: true,
+          text: 'Time'
+        },
+        ticks: {
+          // Prevent overlapping by limiting the maximum number of ticks
+          maxTicksLimit: 10
+        }
+      },
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Emotion Probability (%)'
+        },
+        ticks: {
+          maxTicksLimit: 10,
+          // Format the ticks to reduce decimal places
+          callback: (value) => {
+            // Check if the value is a number before calling toFixed
+            if (typeof value === 'number') {
+              return value.toFixed(2) + '%';
+            }
+            return value; // Or handle the string case as needed
+          }
+        }
+      }
+    },
+    plugins: {
+      datalabels: {
+        display: false
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+      },
+      legend: {
+        display: true
+      }
+    },
+    interaction: {
+      mode: 'nearest',
+      axis: 'x',
+      intersect: false
+    },
+    elements: {
+      line: {
+        fill: 'origin', // This will color the area under the line
+      },
+      point: {
+        radius: 0 // This will remove the points on the line
+      }
+    }
+  };
   
 return (
   <>
@@ -366,7 +491,44 @@ return (
           </div>
         </div>
       </div>
+      {/* Modal */}
+      {showModal && (
+        <>
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'white',
+            padding: '40px',
+            zIndex: 1050,
+            width: '80%',
+            maxWidth: '900px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Emotion Over Time</h2>
+            <Line key={emotionHistory.length} data={chartData2} options={options2} />
+            <button onClick={() => setShowModal(false)} style={{ color: 'red', fontSize: '16px', padding: '10px 20px', cursor: 'pointer', marginTop: '20px' }}>
+              Close
+            </button>
+          </div>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000
+          }} onClick={() => setShowModal(false)}></div>
+        </>
+      )}
+
     </main>
+
+
 
     <style jsx>{`
       .webcam-style {

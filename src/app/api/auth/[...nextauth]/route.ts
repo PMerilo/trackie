@@ -7,6 +7,9 @@ import { User } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
     // Configure one or more authentication providers
+    session: {
+      strategy: 'jwt'
+    },
     providers: [
       GithubProvider({
         clientId: process.env.GITHUB_ID || "",
@@ -55,11 +58,11 @@ export const authOptions: NextAuthOptions = {
         }
       },
       jwt: ({ token, user }) => {
-        // const u = user as unknown as User
         if (user) {
+          const u = user as unknown as User
           return {
             ...token, 
-            id: user.id
+            id: u.id
           }
         }
         return token

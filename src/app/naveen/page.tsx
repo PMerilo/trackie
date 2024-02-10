@@ -1,321 +1,246 @@
 'use client'
 
-// Import necessary React and other libraries
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Head from 'next/head';  // For setting the document head tags
-import Webcam from 'react-webcam';  // React component for webcam functionality
-import ChartDataLabels from 'chartjs-plugin-datalabels';  // Plugin for Chart.js
-import Link from 'next/link';
+import Head from 'next/head';
+import Webcam from 'react-webcam';
+import * as faceapi from 'face-api.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import 'chartjs-adapter-date-fns';
-import { parse } from 'date-fns';
-import { VideoCameraIcon, ViewfinderCircleIcon, ViewColumnsIcon, EyeIcon, FaceSmileIcon } from '@heroicons/react/24/outline';  // Icons for UI
-import { Bar, Line } from 'react-chartjs-2';  // Bar chart component from Chart.js
-import { Chart, ChartOptions, Scale, registerables } from 'chart.js';  // Chart.js library
+import { parse, parseISO } from 'date-fns';
+import { Bar, Line } from 'react-chartjs-2';
+import { Chart, ChartOptions, registerables } from 'chart.js';
 
-// Registering components and plugins for Chart.js
-Chart.register(...registerables);
-Chart.register(ChartDataLabels);
-
-// TypeScript interfaces for typing the emotion data and colors
-interface EmotionData {
-  [key: string]: number;
-}
-
-interface EmotionHistoryEntry {
-  timestamp: string;
-  emotions: EmotionData; // Assuming EmotionData is already defined as shown in your initial code
-}
-
-type EmotionColors = {
-  [key in keyof EmotionData]?: string;
-};
-
-// Main component function
-export default function Home() {
-  // State variables and constants
-  const FLASK_API_URL = process.env.REACT_APP_FLASK_API_URL || 'http://127.0.0.1:5000/';
-  // States for camera, emotions, loading, errors, and intervals
-  const [isCameraEnabled, setCameraEnabled] = useState(false);
-  const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
+const Home: React.FC = () => {
+  const [isCameraEnabled, setCameraEnabled] = useState<boolean>(false);
+  const [isDetecting, setIsDetecting] = useState<boolean>(false);
+  const [showDetections, setShowDetections] = useState(true);
+  const [showLandmarks, setShowLandmarks] = useState(true);
+  const [showExpressions, setShowExpressions] = useState(true);
+  const [showModal, setShowModal] = useState<boolean>(false);
   const [emotionHistory, setEmotionHistory] = useState<EmotionHistoryEntry[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [emotionChartData, setEmotionChartData] = useState<{labels: string[], data: number[]}>({
+    labels: [],
+    data: []
+  });
+  const [highestEmotion, setHighestEmotion] = useState<{ name: string; percentage: number } | null>(null);
   const webcamRef = useRef<Webcam>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadedImageURL, setUploadedImageURL] = useState<string | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
-  const [highestEmotion, setHighestEmotion] = useState({emotion: '', value: 0});
-  const buttonText = isDetecting ? 'Stop Real-Time Detection' : selectedFile ? 'Upload and Detect Emotions' : 'Start Real-Time Detection';
-  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const buttonText = isDetecting ? 'Stop Real-Time Detection' : 'Start Real-Time Detection';
+  const [chartInstance, setChartInstance] = useState(null);
+  const chartRef = useRef<any>(null);
 
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      setSelectedFile(file);
-      const imageURL = URL.createObjectURL(file);
-      setUploadedImageURL(imageURL); // Set the uploaded image URL
-    }
+  Chart.register(...registerables);
+  Chart.register(ChartDataLabels);
+
+  type EmotionColors = {
+    [key in keyof typeof faceapi.FaceExpressions as string]?: string;
   };
 
-  const uploadFile = async () => {
-    if (selectedFile) {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      setLoading(true);
-      setError(''); // Clear any previous errors
-  
-      try {
-        const response = await fetch(`${FLASK_API_URL}/detect-emotions`, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log('Emotion data received:', data); // Debugging line
-        setEmotionData(data);
-        const timestamp = new Date().toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore' });
-        setEmotionHistory((prevHistory) => {
-          const updatedHistory = [
-            ...prevHistory,
-            { timestamp, emotions: data }
-          ];
-          console.log('Previous emotionHistory:', prevHistory);
-          console.log('New emotionHistory entry:', { timestamp, emotions: data });
-          console.log('Updated emotionHistory:', updatedHistory);
-          return updatedHistory;
-        })
-      } catch (error) {
-        let errorMessage = 'Error uploading file: ';
-        if (error instanceof Error) {
-          // If it's an Error object, we can access the message property
-          errorMessage += error.message;
-        } else {
-          // If it's not an Error object, we'll simply add that we encountered an unknown error
-          errorMessage += 'An unknown error occurred.';
-        }
-        setError(errorMessage); // Update the error state with the appropriate message
-        console.error(errorMessage, error);
-      } finally {
-        setLoading(false)
-      }
-    }
+  type EmotionData = {
+    [K in keyof typeof faceapi.FaceExpressions]?: number;
   };
 
-  // Function to send the image to the Flask API for emotion detection
-  const sendImageToAPI = async (imageSrc: string | Blob) => {
-    setLoading(true);
-    setError('');
-
-    // Create a FormData object and append the image as a blob
-    try {
-      const formData = new FormData();
-      if (typeof imageSrc === 'string') {
-          const base64Response = await fetch(imageSrc);
-          const blob = await base64Response.blob();
-          formData.append('file', blob, 'upload.jpg');
-      } else {
-          // If the image source is a blob, append it directly
-          formData.append('file', imageSrc, 'upload.jpg');
-      }
-
-      // Send a POST request to the API endpoint with the image
-      const response = await fetch(`${FLASK_API_URL}/detect-emotions`, {
-          method: 'POST',
-          body: formData,
-      });
-
-      if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Parse the JSON response and update state
-      const data = await response.json() as EmotionData;
-      console.log('Received data:', data); // Log the received data
-      setEmotionData(data);
-      const timestamp = new Date().toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore' });
-      setEmotionHistory((prevHistory) => {
-        const updatedHistory = [
-          ...prevHistory,
-          { timestamp, emotions: data }
-        ];
-        console.log('Previous emotionHistory:', prevHistory);
-        console.log('New emotionHistory entry:', { timestamp, emotions: data });
-        console.log('Updated emotionHistory:', updatedHistory);
-        return updatedHistory;
-      })
-      console.log('Updated emotionData state:', emotionData); // Log the updated state
-    } catch (error: any) {
-        setError('Failed to send image to API.');
-        console.error('There was an error sending the image to the API', error);
-    } finally {
-        setLoading(false);
-    }
+  type EmotionHistoryEntry = {
+    timestamp: string;
+    emotions: EmotionData;
   };
 
-  // Helper function to process an image URL and send it to the API
-  const processImageAndSendToAPI = async (imageSrc: string) => {
-    try {
-      // Convert image URL to a blob and then send it to the API
-      const base64Response = await fetch(imageSrc);
-      const blob = await base64Response.blob();
-      await sendImageToAPI(blob);
-    } catch (error) {
-      console.error('Error in processImageAndSendToAPI:', error);
-    }
+  const emotionColors: EmotionColors = {
+    happy: 'rgba(255, 206, 86, 0.2)',
+    sad: 'rgba(54, 162, 235, 0.2)',
+    angry: 'rgba(255, 99, 132, 0.2)',
+    fear: 'rgba(153, 102, 255, 0.2)',
+    surprise: 'rgba(255, 159, 64, 0.2)',
+    disgust: 'rgba(201, 203, 207, 0.2)',
+    neutral: 'rgba(75, 192, 192, 0.2)'
   };
 
-  
-
-  // Function to start real-time emotion detection
-  const startRealTimeDetection = () => {
-    if (webcamRef.current) {
-      // Create an interval to capture and send images at regular intervals
-      const id = setInterval(async () => {
-        const imageSrc = webcamRef.current?.getScreenshot();
-        if (imageSrc) {
-          await processImageAndSendToAPI(imageSrc);
-        }
-      }, 2000); // Adjust the interval as needed
-      setIntervalId(id);
-    } else {
-      console.error('Webcam not available for real-time detection.');
-    }
+  const loadModels = async () => {
+    const MODEL_URL = '/EmoRecogModels';
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+    ]);
   };
 
-  // Function to stop real-time emotion detection
-  const stopRealTimeDetection = () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-      setIntervalId(null);
-      setIsDetecting(false);
-  
-      // Wait for the last set of emotions to be processed before showing the modal
-      setTimeout(() => {
-        setShowModal(true);
-        console.log('Showing emotion over time modal');
-      }, 2000); // Adjust timeout as needed
-    }
-  };
-  
-  // Function to toggle real-time emotion detection on or off
-  const toggleRealTimeDetection = () => {
-    console.log(`Toggling real-time detection. Currently detecting: ${isDetecting}`);
-    if (isDetecting) {
-      stopRealTimeDetection();
-    } else {
-      if (webcamRef.current) {
-        startRealTimeDetection();
-      }
-    }
-    setIsDetecting((prev) => !prev);
-  };
-  
-
-  // This effect updates the highest emotion when emotionData changes
   useEffect(() => {
-    console.log('Component updated with emotionHistory:', emotionHistory);
-    console.log('Chart data for rendering:', chartData2);
-  }, [emotionHistory]);
+    loadModels();
+  }, []);
 
-    // Combined function to handle both real-time detection and file upload
-    const handleAction = async () => {
-      if (isCameraEnabled) {
-        toggleRealTimeDetection();
-      } else if (selectedFile) {
-        await uploadFile();
+  useEffect(() => {
+    setShowDetections(isCameraEnabled);
+    setShowLandmarks(isCameraEnabled);
+    setShowExpressions(isCameraEnabled);
+  }, [isCameraEnabled]);
+
+  const getDominantEmotion = (expressions: faceapi.FaceExpressions): { emotion: string, probability: number } => {
+    let maxEmotion: string = '';
+    let maxValue = 0;
+
+    for (const [emotion, value] of Object.entries(expressions)) {
+      if (value > maxValue) {
+        maxValue = value;
+        maxEmotion = emotion;
       }
-    };
+    }
 
-  // Function to determine the color of each emotion in the chart
-  const chartDataStyle = (emotion: keyof EmotionData): string => {
-    const emotionColors: EmotionColors = {
-      Happy: 'rgba(255, 206, 86, 0.2)',  // Yellow
-      Sad: 'rgba(54, 162, 235, 0.2)',    // Blue
-      Angry: 'rgba(255, 99, 132, 0.2)',  // Red
-      Fear: 'rgba(153, 102, 255, 0.2)',  // Purple
-      Surprise: 'rgba(255, 159, 64, 0.2)', // Orange
-      Disgust: 'rgba(75, 192, 192, 0.2)', // Teal
-      Neutral: 'rgba(201, 203, 207, 0.2)'  // Grey
-    };
-    return emotionColors[emotion] || 'rgba(75, 192, 192, 0.2)';
+    return { emotion: maxEmotion, probability: maxValue };
   };
 
-  // Function to convert emotion data to chart format
-  const getChartData = (emotionData: EmotionData) => {
-    if (!emotionData) {
-      return { labels: [], datasets: [] };
+  type Emotions = {
+    [K in keyof typeof faceapi.FaceExpressions]?: number;
+  };
+
+  const captureEmotion = useCallback(async () => {
+    if (webcamRef.current && canvasRef.current) {
+      const video = webcamRef.current.video;
+      const canvas = canvasRef.current;
+      if (video && video.readyState === 4) {
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+
+        const displaySize = { width: videoWidth, height: videoHeight };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
+          const img = new Image();
+          img.onload = async () => {
+            const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+              .withFaceLandmarks()
+              .withFaceExpressions();
+
+            if (detections.length > 0) {
+              const emotions: Emotions = detections.reduce((acc, detection) => {
+                const expressions = detection.expressions as Emotions;
+                for (const [emotion, value] of Object.entries(expressions)) {
+                  const emotionKey = emotion as keyof Emotions;
+                  acc[emotionKey] = (acc[emotionKey] || 0) + (value as number);
+                }
+                return acc;
+              }, {} as { [key: string]: number });
+
+              let maxEmotionName = '';
+              let maxEmotionValue = 0;
+              Object.entries(emotions).forEach(([key, value]) => {
+                if (value > maxEmotionValue) {
+                  maxEmotionValue = value;
+                  maxEmotionName = key;
+                }
+              });
+              setHighestEmotion({
+                name: maxEmotionName,
+                percentage: maxEmotionValue / detections.length,
+              });
+
+              const labels = Object.keys(emotions) as Array<keyof typeof faceapi.FaceExpressions>;
+              const data = labels.map(label => (emotions[label] || 0) / detections.length);
+
+              setEmotionChartData({ labels, data });
+              setEmotionHistory((prevHistory) => [
+                ...prevHistory,
+                { timestamp: new Date().toISOString(), emotions: emotions },
+              ]);
+            }
+
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, videoWidth, videoHeight);
+
+              if (showDetections) {
+                faceapi.draw.drawDetections(canvas, resizedDetections);
+              }
+              if (showLandmarks) {
+                faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+              }
+              if (showExpressions) {
+                faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+              }
+            }
+          };
+          img.src = imageSrc;
+        }
+      }
     }
-    const labels = Object.keys(emotionData);
-    const dataValues = labels.map(label => emotionData[label]);
-    const chartData = {
-      labels,
+  }, [webcamRef, canvasRef, setEmotionChartData]);
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (isCameraEnabled && isDetecting) {
+      intervalId = setInterval(captureEmotion, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isCameraEnabled, isDetecting, showDetections, showLandmarks, showExpressions, captureEmotion]);
+
+  const handleAction = () => {
+    setIsDetecting((prevIsDetecting) => {
+      if (prevIsDetecting) {
+        setTimeout(() => setShowModal(true), 500);
+      }
+      return !prevIsDetecting;
+    });
+  };
+
+  useEffect(() => {
+    setShowDetections(isCameraEnabled);
+    setShowLandmarks(isCameraEnabled);
+    setShowExpressions(isCameraEnabled);
+  }, [isCameraEnabled]);
+
+  const getEmotionChartData = () => {
+    const backgroundColors = emotionChartData.labels.map(label => {
+      const key = label.toLowerCase() as keyof EmotionColors;
+      return emotionColors[key] || 'rgba(75, 192, 192, 0.7)';
+    });
+    const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
+    return {
+      labels: emotionChartData.labels,
       datasets: [
         {
           label: 'Emotion Probabilities',
-          data: dataValues,
-          backgroundColor: labels.map(label => chartDataStyle(label as keyof EmotionData)),
-          borderColor: labels.map(label => chartDataStyle(label as keyof EmotionData)),
+          data: emotionChartData.data,
+          backgroundColor: backgroundColors,
+          borderColor: borderColors,
+          borderWidth: 1,
         },
       ],
     };
-    return chartData;
   };
 
-  const chartData2 = emotionHistory.length > 0 ? {
-    labels: emotionHistory.map(entry => {
-      const parsedDate = parse(entry.timestamp, 'hh:mm:ss a', new Date());
-      console.log('Parsed date:', parsedDate);
-      return parsedDate;
-    }),
-    datasets: Object.keys(emotionHistory[0].emotions).map(key => {
+  const getEmotionHistoryChartData = () => {
+    const datasets = Object.keys(emotionColors).map((emotion) => {
       return {
-        label: key,
-        // Make sure to multiply by 100 to convert to percentages
-        data: emotionHistory.map(entry => entry.emotions[key] * 100),
-        fill: 'origin',
-        backgroundColor: chartDataStyle(key as keyof EmotionData),
-        borderColor: chartDataStyle(key as keyof EmotionData),
-        pointBackgroundColor: chartDataStyle(key as keyof EmotionData),
-        tension: 0.3
+        label: emotion,
+        data: emotionHistory.map((entry) => ({
+          x: parseISO(entry.timestamp),
+          y: entry.emotions[emotion as keyof EmotionData] || 0,
+        })),
+        backgroundColor: emotionColors[emotion as keyof EmotionColors],
+        borderColor: emotionColors[emotion as keyof EmotionColors],
+        pointBackgroundColor: emotionColors[emotion as keyof EmotionColors],
+        tension: 0.3,
+        fill: true,
       };
-    })
-  } : { labels: [], datasets: [] };
-  
+    });
 
-  // Options for the bar chart
-  const options: ChartOptions<"bar"> = {
+    return {
+      datasets,
+      labels: emotionHistory.map((entry) => parseISO(entry.timestamp)),
+    };
+  };
+
+  const chartOptions: ChartOptions<"bar"> = {
     responsive: true,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      datalabels: {
-        color: '#fff',
-        anchor: 'end',
-        align: 'top',
-        formatter: (value, context) => {
-          return `${(value * 100).toFixed(2)}%`;
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context) {
-            const label = context.dataset.label || '';
-            const value = context.parsed.y;
-            if (typeof value === 'number') {
-              return `${label}: ${(value * 100).toFixed(2)}%`;
-            }
-            return label;
-          }
-        }
-      }
-    },
     scales: {
       y: {
         beginAtZero: true,
@@ -329,7 +254,7 @@ export default function Home() {
         },
         title: {
           display: true,
-          text: 'Probability', // make sure the label is shown
+          text: 'Probability',
           color: '#ffffff',
         }
       },
@@ -339,21 +264,43 @@ export default function Home() {
         },
         title: {
           display: true,
-          text: 'Emotions', // x-axis label
+          text: 'Emotions',
           color: '#ffffff',
         }
       }
-    }
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      datalabels: {
+        color: '#fff',
+        anchor: 'end',
+        align: 'end',
+        formatter: (value, context) => {
+          return `${(value * 100).toFixed(2)}%`;
+      },
+      font: {
+        weight: 'bold',
+      },
+      padding: 0,
+      display: (context) => {
+        const value = context?.dataset?.data[context.dataIndex];
+        return typeof value === 'number' && value > 0.05;
+      },
+        },
+    },
   };
 
-  const options2: ChartOptions<"line"> = {
+  const lineChartOptions: ChartOptions<"line"> = {
     scales: {
       x: {
         type: 'time',
         time: {
-          // Specify the display format for the ticks on the X-axis
+          unit: 'second',
+          tooltipFormat: 'HH:mm a',
           displayFormats: {
-            minute: 'hh:mm a', // Use a format that spreads out the labels appropriately
+            minute: 'HH:mm a',
           },
         },
         title: {
@@ -361,7 +308,7 @@ export default function Home() {
           text: 'Time'
         },
         ticks: {
-          // Prevent overlapping by limiting the maximum number of ticks
+          autoSkip: true,
           maxTicksLimit: 10
         }
       },
@@ -372,16 +319,13 @@ export default function Home() {
           text: 'Emotion Probability (%)'
         },
         ticks: {
-          maxTicksLimit: 10,
-          // Format the ticks to reduce decimal places
-          callback: (value) => {
-            // Check if the value is a number before calling toFixed
+          callback: function (value) {
             if (typeof value === 'number') {
-              return value.toFixed(2) + '%';
+              return (value * 100).toFixed(0) + '%';
             }
-            return value; // Or handle the string case as needed
-          }
-        }
+            return value;
+          },
+        },
       }
     },
     plugins: {
@@ -393,7 +337,7 @@ export default function Home() {
         intersect: false,
       },
       legend: {
-        display: true
+        position: 'bottom',
       }
     },
     interaction: {
@@ -403,161 +347,277 @@ export default function Home() {
     },
     elements: {
       line: {
-        fill: 'origin', // This will color the area under the line
+        fill: 'origin',
+        tension: 0.3
       },
       point: {
-        radius: 0 // This will remove the points on the line
+        radius: 0
+      }
+    },
+    maintainAspectRatio: false
+  };
+
+  const downloadChart = useCallback(() => {
+    if (chartRef.current) {
+      // Access the canvas from the chart instance
+      const chartCanvas = chartRef.current.canvas;
+      if (chartCanvas) { // Make sure the canvas exists
+        const chartURL = chartCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = chartURL;
+        link.download = 'emotion-chart.png'; // Name the file as you like
+        link.click();
       }
     }
-  };
-  
-return (
-  <>
-    <Head>
-      <title>Emotion Recognition</title>
-      <link rel="icon" href="/favicon.ico" />
-    </Head>
+  }, []);
 
-    <main className="min-h-screen bg-black text-white">
-      <div className="container mx-auto p-4">
-        <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition</h1>
+  return (
+    <>
+      <Head>
+        <title>Emotion Recognition</title>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
 
-        <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
-          {/* Webcam and File Upload Column */}
-          <div className="webcam-container lg:w-1/2 space-y-4">
-            {/* Camera Option and Start Button */}
-            <div className="flex flex-row justify-between items-center w-full mb-4">
-              {/* Camera Checkbox */}
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" className="checkbox checkbox-primary" checked={isCameraEnabled} onChange={() => setCameraEnabled(!isCameraEnabled)} />
-                <span>Camera</span>
-                <VideoCameraIcon className="h-6 w-6 text-blue-500" />
-              </label>
+      <main className="min-h-screen bg-black text-white">
+        <div className="container mx-auto p-4">
+          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition</h1>
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
+            <div className="webcam-container lg:w-1/2 space-y-4">
+              <div className="flex flex-row justify-start items-center w-full gap-10 mb-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="checkbox checkbox-primary" checked={isCameraEnabled} onChange={() => setCameraEnabled(!isCameraEnabled)} />
+                  <span>Camera</span>
+                </label>
+                {isCameraEnabled && (
+                  <div className="detection-options flex justify-start items-center">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary"
+                        checked={showDetections}
+                        onChange={(e) => setShowDetections(e.target.checked)}
+                      />
+                      <span>Detection</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary"
+                        checked={showLandmarks}
+                        onChange={(e) => setShowLandmarks(e.target.checked)}
+                      />
+                      <span>Landmarks</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-primary"
+                        checked={showExpressions}
+                        onChange={(e) => setShowExpressions(e.target.checked)}
+                      />
+                      <span>Emotion</span>
+                    </label>
+                  </div>
+                )}
+              </div>
 
-              {/* Start Real-Time Detection Button */}
-              {/* <button
-                className={`px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
-                onClick={toggleRealTimeDetection}
-              >
-                {isDetecting ? 'Stop' : 'Start'} Real-Time Detection
-              </button> */}
+              <div className="webcam-style w-full rounded overflow-hidden">
+                {isCameraEnabled ? (
+                  <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" width="100%" />
+                ) : (
+                  <div className="bg-gray-700 flex justify-center items-center w-full h-full"  style={{ height: '555px' }}>
+                    <span>Click on Camera to enable Webcam</span>
+                  </div>
+                )}
+                <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
+              </div>
+              <div className="file-upload w-full">
+                <button 
+                  className={`text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 w-full transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
+                  onClick={handleAction}
+                  disabled={!isCameraEnabled}
+                >
+                  {buttonText}
+                </button>
+              </div>
             </div>
 
-
-            {/* Webcam Section */}
-            <div className="webcam-style w-full rounded overflow-hidden" style={{ height: '420px' }}>
-              {isCameraEnabled ? (
-                <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" width="100%" />
-              ) : uploadedImageURL ? (
-                <img src={uploadedImageURL} alt="Uploaded Emotion" style={{ width: '100%', height: '420px', objectFit: 'cover' }} />
+            <div className="prediction-container lg:w-1/2" style={{ marginTop: '20px' }}>
+            <div className="graphical-visualization rounded-lg border border-white shadow-2xl overflow-hidden" style={{ height: '555px', width: '100%', maxWidth: '720px'}}>
+              {highestEmotion ? (
+                <h2 className="text-xl font-semibold text-center mt-2 mb-4" style={{ marginBottom: '40px' }}>Predicted Emotion: {highestEmotion.name} ({(highestEmotion.percentage * 100).toFixed(2)}%)</h2>
               ) : (
-                <div className="bg-gray-700 flex justify-center items-center w-full h-full">
-                  <span>Please upload an Image or click on Camera to enable Webcam</span>
-                </div>
+                <h2 className="text-xl font-semibold text-center mt-2 mb-4" style={{ marginBottom: '40px' }}>Predicted Emotion: Calculating...</h2>
               )}
-            </div>
-
-            {/* File Upload Section */}
-            <div className="file-upload w-full">
-              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white" htmlFor="file_input">Upload file</label>
-              <input 
-                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 mb-2"
-                id="file_input"
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-              <button 
-                className={`text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 w-full transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
-                onClick={handleAction}
-                disabled={!selectedFile && !isCameraEnabled}
-              >
-                {buttonText}
-              </button>
-            </div>
-          </div>
-
-          {/* Prediction Column */}
-          <div className="prediction-container lg:w-1/2" style={{ marginTop: '40px' }}>
-            {/* Predicted Emotion Chart */}
-            <div className="graphical-visualization rounded-lg border border-white shadow-2xl overflow-hidden" style={{ height: '420px', width: '100%', maxWidth: '720px' }}>
-              <h2 className="text-xl font-semibold text-center mt-2 mb-4">Predicted Emotion: {highestEmotion.emotion ? `${highestEmotion.emotion} (${(highestEmotion.value * 100).toFixed(2)}%)` : 'Calculating...'}</h2>
-              {emotionData ? (
-                <Bar data={getChartData(emotionData)} options={options} />
+              <div className="chart-container"  style={{ paddingTop: '20px' }}>
+              {emotionChartData.data.length > 0 ? (
+                <Bar data={getEmotionChartData()} options={chartOptions}/>
               ) : (
                 <span className="flex justify-center">No emotion detected yet.</span>
               )}
+              </div>
+              <span className="flex justify-center" style={{ marginTop: '40px' }}>(Bar chart updates every 2 seconds)</span>
+            </div>
             </div>
           </div>
         </div>
+        {showModal && (
+  <>
+    <div style={{
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      backgroundColor: 'white',
+      padding: '40px',
+      zIndex: 1050,
+      width: '80%',
+      maxWidth: '900px',
+      maxHeight: '80vh',
+      overflowY: 'auto',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      borderRadius: '8px',
+      textAlign: 'center'
+    }}>
+      <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Emotion Over Time</h2>
+      <div style={{ height: '400px', marginBottom: '20px' }}>
+        <Line ref={chartRef} data={getEmotionHistoryChartData()} options={lineChartOptions} />
       </div>
-      {/* Modal */}
-      {showModal && (
-        <>
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'white',
-            padding: '40px',
-            zIndex: 1050,
-            width: '80%',
-            maxWidth: '900px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            borderRadius: '8px',
-            textAlign: 'center'
-          }}>
-            <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Emotion Over Time</h2>
-            <Line key={emotionHistory.length} data={chartData2} options={options2} />
-            <button onClick={() => setShowModal(false)} style={{ color: 'red', fontSize: '16px', padding: '10px 20px', cursor: 'pointer', marginTop: '20px' }}>
-              Close
-            </button>
-          </div>
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 1000
-          }} onClick={() => setShowModal(false)}></div>
-        </>
-      )}
-
-    </main>
-
-
-
-    <style jsx>{`
-      .webcam-style {
-        position: relative;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      .checkbox-primary:checked + svg {
-        color: #3ABFF8;
-      }
-
-      .checkbox-primary:checked + span {
-        color: #3ABFF8;
-      }
-
-      .graphical-visualization {
-        position: relative;
-        overflow: hidden;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      @media (max-width: 768px) {
-        .webcam-style, .graphical-visualization {
-          width: 100%;
-          margin-bottom: 1rem;
-        }
-      }
-    `}</style>
+      <div className="button-container">
+        <button className="button button-download" onClick={downloadChart}>
+          Download Chart
+        </button>
+        <button className="button button-close" onClick={() => setShowModal(false)}>
+          Close
+        </button>
+      </div>
+    </div>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      zIndex: 1000
+    }} onClick={() => setShowModal(false)}></div>
   </>
-);  
-}
+)}
+      </main>
+
+      <style jsx>{`
+        .aspect-video {
+          padding-top: 56.25%;
+          position: relative;
+        }
+        .webcam-style {
+          position: relative;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .checkbox-primary {
+          appearance: none;
+          margin: 0;
+          font: inherit;
+          color: #646EE4;
+          transform: translateY(-0.075em);
+          display: grid;
+          place-content: center;
+        }
+        
+        .checkbox-primary:checked::before {
+          content: url('path-to-your-checked-icon.svg');
+        }
+        
+        .checkbox-primary:checked {
+          background-color: #646EE4;
+        }
+        
+        .checkbox-label {
+          margin-left: 0.5em;
+          color: white;
+        }
+        
+        .checkbox-container {
+          display: flex;
+          align-items: center;
+        }
+
+        .checkbox-primary:checked + svg {
+          color: #646EE4;
+        }
+
+        .checkbox-primary:checked + span {
+          color: white;
+        }
+
+        .detection-options {
+          display: flex;
+          justify-content: space-around; 
+          align-items: right;
+          width: 100%;
+        }
+
+        .graphical-visualization {
+          margin-top: 20px;
+          position: relative;
+          overflow: hidden;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .button {
+          padding: 10px 25px;
+          border: none;
+          border-radius: 25px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-size: 0.85em;
+          color: white; /* Ensuring text is white for better readability on the gradient */
+        }
+        
+        .button:hover {
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+          transform: translateY(-2px);
+        }
+        
+        .button-download {
+          background: linear-gradient(45deg, #646EE4, #5a67d8); /* Gradient from your theme color to a slightly darker shade */
+        }
+        
+        .button-download:hover {
+          background: linear-gradient(45deg, #5a67d8, #4c51bf); /* Slightly different shades for hover effect */
+        }
+        
+        .button-close {
+          background: linear-gradient(45deg, #FF8C8C, #FFA6A6); /* Lighter red gradient on hover */
+        }
+        
+        .button-close:hover {
+          background: linear-gradient(45deg, #FF6B6B, #FF8C8C); /* Red gradient for the Close button */
+        }
+        
+
+        .button-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 30px;
+          margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+          .aspect-video {
+            width: 100%;
+          }
+        }
+      `}</style>
+    </>
+  );
+};
+
+export default Home;

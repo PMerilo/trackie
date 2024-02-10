@@ -380,8 +380,8 @@ const Home: React.FC = () => {
 
       <main className="min-h-screen bg-black text-white">
         <div className="container mx-auto p-4">
-          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition</h1>
-          <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
+          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px', marginBottom: '60px' }}>Emotion Recognition</h1>
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
             <div className="webcam-container lg:w-1/2 space-y-4">
               <div className="flex flex-row justify-start items-center w-full gap-10 mb-4">
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -519,7 +519,7 @@ const Home: React.FC = () => {
           appearance: none;
           margin: 0;
           font: inherit;
-          color: #646EE4;
+          color: #2563EB;
           transform: translateY(-0.075em);
           display: grid;
           place-content: center;
@@ -530,7 +530,7 @@ const Home: React.FC = () => {
         }
         
         .checkbox-primary:checked {
-          background-color: #646EE4;
+          background-color: #2563EB;
         }
         
         .checkbox-label {
@@ -544,7 +544,7 @@ const Home: React.FC = () => {
         }
 
         .checkbox-primary:checked + svg {
-          color: #646EE4;
+          color: #2563EB;
         }
 
         .checkbox-primary:checked + span {

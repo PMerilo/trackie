@@ -30,7 +30,7 @@ export default async function Home() {
     )
   }
   return (
-    <main>
+    <main className='mt-[-104px]'>
       <div className="hero min-h-screen">
         <div className="hero-content text-center">
           <div className="">

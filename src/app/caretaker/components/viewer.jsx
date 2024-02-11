@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react"
 
-
 export default function Viewer(props) {
     const videoRef = useRef(null)
    
@@ -87,14 +86,12 @@ export default function Viewer(props) {
         });
     }
 
-    const media = new URLSearchParams(location.search).get('media');
-
     useEffect(() => {
         connect('video+audio');
     }, [])
     return (
         <>
-            <video className="pointer-events-none" width="640" height="480" ref={videoRef} autoPlay playsInline muted={props.muted}>Receiver</video>
+            <video className="pointer-events-none" width="1280" height="1000" ref={videoRef} autoPlay playsInline muted={props.muted}>Receiver</video>
         </>
     )
 }

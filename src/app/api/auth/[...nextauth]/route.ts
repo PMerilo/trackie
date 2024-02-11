@@ -7,6 +7,12 @@ import { User } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
     // Configure one or more authentication providers
+    pages: {
+      signIn: '/auth/login',
+      // error: '/auth/error', // Error code passed in query string as ?error=
+      // verifyRequest: '/auth/verify-request', // (used for check email message)
+      newUser: '/' // New users will be directed here on first sign in (leave the property out if not of interest)
+    },
     session: {
       strategy: 'jwt'
     },
@@ -66,6 +72,13 @@ export const authOptions: NextAuthOptions = {
           }
         }
         return token
+      },
+      async redirect({ url, baseUrl }) {
+        // Allows relative callback URLs
+        if (url.startsWith("/")) return `${baseUrl}${url}`
+        // Allows callback URLs on the same origin
+        else if (new URL(url).origin === baseUrl) return url
+        return baseUrl
       }
     }
 }

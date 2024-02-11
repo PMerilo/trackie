@@ -3,8 +3,8 @@ import { Session } from 'next-auth'
 import Image from 'next/image'
 import Link from 'next/link'
 import { authOptions } from './api/auth/[...nextauth]/route'
-import { LoginBtn, LogoutBtn } from './components/auth'
-import TaskDrawer from './tasks/list'
+import { LoginBtn, LogoutBtn, SignUpBtn } from './components/auth'
+import TaskDrawer from './components/TaskDrawer'
 import { prisma } from '@/lib/db'
 
 const fetchTasks = async (userId : number) => {
@@ -24,7 +24,7 @@ export default async function Home() {
     const tasks = await fetchTasks(parseInt(session.user.id))
     return (
       <>
-        <TaskDrawer tasks={tasks} userId={session.user.id}/>
+        <TaskDrawer tasks={tasks}/>
         <LogoutBtn/>
       </>
     )
@@ -47,7 +47,7 @@ export default async function Home() {
                 :
               <>
                 <LoginBtn/>
-                <Link className="btn btn-secondary btn-outline" href="/auth/signup">Sign Up</Link>
+                <SignUpBtn/>
               </>
               }
             </div>

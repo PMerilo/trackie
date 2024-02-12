@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router'; // Move the import inside the component
 import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -10,7 +11,6 @@ import { parse, parseISO } from 'date-fns';
 import { Bar, Line } from 'react-chartjs-2';
 import { Chart, ChartOptions, registerables } from 'chart.js';
 import Twilio from 'twilio';
-
 
 const Home: React.FC = () => {
   const [isCameraEnabled, setCameraEnabled] = useState<boolean>(false);
@@ -30,6 +30,7 @@ const Home: React.FC = () => {
   const buttonText = isDetecting ? 'Stop Real-Time Detection' : 'Start Real-Time Detection';
   const [chartInstance, setChartInstance] = useState(null);
   const chartRef = useRef<any>(null);
+  const [accessToken, setAccessToken] = useState('');
   const [emotionCounters, setEmotionCounters] = useState({
     happy: 0,
     sad: 0,
@@ -39,7 +40,6 @@ const Home: React.FC = () => {
     disgust: 0,
     neutral: 0,
   });
-
 
   Chart.register(...registerables);
   Chart.register(ChartDataLabels);
@@ -62,6 +62,19 @@ const Home: React.FC = () => {
     [key in Emotion]: number;
   };
 
+  type BadEmotion = 'sad' | 'angry' | 'fear';
+
+  type SpotifyDevice = {
+    id: string;
+    is_active: boolean;
+    is_private_session: boolean;
+    is_restricted: boolean;
+    name: string;
+    type: string;
+    volume_percent: number;
+  };
+  
+
   const emotionColors: EmotionColors = {
     happy: 'rgba(255, 206, 86, 0.2)',
     sad: 'rgba(54, 162, 235, 0.2)',
@@ -74,17 +87,70 @@ const Home: React.FC = () => {
 
   const loadModels = async () => {
     const MODEL_URL = '/EmoRecogModels';
+    console.log('Loading face detection models...');
     await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-      faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
     ]);
-  };
-
+    console.log('Face detection models loaded successfully!');
+};
   useEffect(() => {
     loadModels();
   }, []);
+
+  const client_id = 'e80e748c82854e4e8fcf0a529f967fa9';
+  const redirect_uri = encodeURIComponent('http://localhost:3000/naveenAPI');
+  const scopes = encodeURIComponent('user-modify-playback-state');
+  
+  // Function to handle the click event on the "Log in to Spotify" button
+  const handleSpotifyLogin = () => {
+    // Construct the Spotify authorization URL with the correct redirect_uri
+    const spotifyAuthUrl = `https://accounts.spotify.com/authorize?client_id=${client_id}&response_type=token&redirect_uri=${redirect_uri}&scope=${scopes}`;
+    console.log('Spotify authorization URL:', spotifyAuthUrl);
+    // Redirect the user to Spotify's authorization page
+    window.location.href = spotifyAuthUrl;
+};
+
+  const handleLogout = () => {
+    // Remove the access token from local storage
+    localStorage.removeItem('spotifyAccessToken');
+    // Set the access token state to an empty string
+    setAccessToken('');
+  };
+
+  
+  // Function to handle the Spotify callback
+  const handleSpotifyCallback = () => {
+    // Extract the access token from the URL fragment
+    const urlParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = urlParams.get('access_token');
+    // If access token is present, set it in local storage and state
+    if (accessToken) {
+      console.log('Access token retrieved:', accessToken);
+      localStorage.setItem('spotifyAccessToken', accessToken);
+      setAccessToken(accessToken);
+    } else {
+      console.log('No access token found in URL fragment.');
+    }
+  };
+
+  
+  
+  useEffect(() => {
+    // Check if access token is already present in local storage
+    const storedAccessToken = localStorage.getItem('spotifyAccessToken');
+    if (storedAccessToken) {
+      console.log('Access token retrieved from local storage:', storedAccessToken);
+      setAccessToken(storedAccessToken);
+    } else {
+      console.log('No access token found in local storage.');
+      // If access token is not present, handle callback to check if redirected with access token
+      handleSpotifyCallback();
+    }
+  }, []);
+  
 
   useEffect(() => {
     setShowDetections(isCameraEnabled);
@@ -110,6 +176,21 @@ const Home: React.FC = () => {
     [K in keyof typeof faceapi.FaceExpressions]?: number;
   };
 
+  if (webcamRef.current && webcamRef.current.video) {
+    console.log('Webcam reference present and video element is ready.');
+  } else {
+      console.log('Webcam reference not present or video element is not ready.');
+  }
+
+  if (canvasRef.current) {
+    console.log('Canvas reference present.');
+  } else {
+      console.log('Canvas reference not present.');
+  }
+
+
+
+
   const captureEmotion = useCallback(async () => {
     if (webcamRef.current && canvasRef.current) {
       const video = webcamRef.current.video;
@@ -130,10 +211,13 @@ const Home: React.FC = () => {
             const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
               .withFaceLandmarks()
               .withFaceExpressions();
+              console.log('Face detection results:', detections);
 
             if (detections.length > 0) {
+              console.log('Faces detected:', detections.length);
               detections.forEach((detection, index) => {
                 console.log(`Detection ${index + 1}:`, detection.expressions);
+                console.log(`Emotions detected for face ${index + 1}:`, detection.expressions);
               });
               const emotions: Emotions = detections.reduce((acc, detection) => {
                 const expressions = detection.expressions as Emotions;
@@ -178,6 +262,8 @@ const Home: React.FC = () => {
                 ...prevHistory,
                 { timestamp: new Date().toISOString(), emotions: emotions },
               ]);
+            } else {
+              console.log('No faces detected.');
             }
 
             const resizedDetections = faceapi.resizeResults(detections, displaySize);
@@ -201,6 +287,13 @@ const Home: React.FC = () => {
       }
     }
   }, [webcamRef, canvasRef, emotionCounters, setEmotionCounters, setEmotionChartData]);
+
+  useEffect(() => {
+    const updateCounters: EmotionCounters = { ...emotionCounters };
+  
+    // Check if any "bad" emotion exceeds the threshold and send an alert
+    checkAndSendAlert(updateCounters);
+  }, []);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -415,52 +508,119 @@ const Home: React.FC = () => {
   };
 
   const checkAndSendAlert = (counters: EmotionCounters) => {
-    const badEmotions: (keyof EmotionCounters)[] = ['fear', 'angry', 'sad'];
-    let shouldSendAlert = badEmotions.some(emotion => {
-      let isThresholdExceeded = counters[emotion] > 20;
-      if (isThresholdExceeded) {
-        console.log(`Threshold exceeded for ${emotion}:`, counters[emotion]);
-      }
-      return isThresholdExceeded;
+    const badEmotions: BadEmotion[] = ['fear', 'angry', 'sad'];
+    let shouldSendAlert = Object.keys(counters).some(emotionKey => {
+        const emotion = emotionKey as BadEmotion;
+        if (badEmotions.includes(emotion) && counters[emotion] > 5) {
+            console.log(`Threshold exceeded for ${emotion}:`, counters[emotion]);
+            playMusicBasedOnEmotion(emotion);
+            return true;
+        }
+        return false;
     });
-  
+
     if (shouldSendAlert) {
-      console.log('Sending SMS alert...');
-      sendSmsAlert();
+        console.log('Sending SMS alert...');
+        // sendSmsAlert();
     } else {
-      console.log('No alert sent. Current counters:', counters);
+        console.log('No alert sent. Current counters:', counters);
     }
-  };
+};
   
-  
-  const sendSmsAlert = async () => {
-    // Define the message you want to send
-    const messageData = {
-      message: "Alert: A dementia patient has been experiencing distressing emotions for more than 10 seconds. Please check in and provide support as needed."
+  // const sendSmsAlert = async () => {
+  //   // Define the message you want to send
+  //   const messageData = {
+  //     message: "Alert: A dementia patient has been experiencing distressing emotions for more than 10 seconds. Please check in and provide support as needed."
+  //   };
+
+  //   try {
+  //       // Make a POST request to the Flask backend
+  //       const response = await fetch('http://localhost:5000/send_sms', { // Adjust the domain as necessary
+  //           method: 'POST',
+  //           headers: {
+  //               'Content-Type': 'application/json',
+  //           },
+  //           body: JSON.stringify(messageData),
+  //       });
+
+  //       if (response.ok) {
+  //           const data = await response.json();
+  //           console.log('SMS sent successfully:', data);
+  //       } else {
+  //           console.error('Failed to send SMS');
+  //       }
+  //   } catch (error) {
+  //       console.error('Error sending SMS:', error);
+  //   }
+  // };
+
+  const playMusicBasedOnEmotion = (emotion: BadEmotion) => {
+    console.log(`playMusicBasedOnEmotion function called with emotion: ${emotion}`);
+    const accessToken = localStorage.getItem('spotifyAccessToken');
+    if (!accessToken) {
+        console.log('No access token for Spotify');
+        // Optionally, prompt re-authentication or handle token refresh here
+        return;
+    }
+
+    console.log(accessToken);
+
+    const emotionPlaylistMap: Partial<Record<Emotion, string>> = {
+        sad: 'spotify:playlist:20G4whR99fWS3y2plxduta?si=1545a90af5c04284',
+        angry: 'spotify:playlist:3sLz0LcG40py6eWNKVAjpp?si=a4549f8993cc4fa6',
+        fear: 'spotify:playlist:0jbaEzUwLTOlIOp42B5pXV?si=457e91a1d0844cda',
     };
 
-    try {
-        // Make a POST request to the Flask backend
-        const response = await fetch('http://localhost:5000/send_sms', { // Adjust the domain as necessary
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(messageData),
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log('SMS sent successfully:', data);
-        } else {
-            console.error('Failed to send SMS');
-        }
-    } catch (error) {
-        console.error('Error sending SMS:', error);
+    const playlistUri = emotionPlaylistMap[emotion];
+    if (!playlistUri) {
+        console.log(`No playlist for emotion: ${emotion}`);
+        return;
     }
-  };
 
+    fetch('https://api.spotify.com/v1/me/player/devices', {
+        headers: {
+            Authorization: 'Bearer ' + accessToken
+        }
+    })
+    .then((res) => {
+        if (!res.ok) {
+            throw new Error(`Failed to fetch devices, status code: ${res.status}`);
+        }
+        return res.json();
+    })
+    .then((data) => {
+        if (!data.devices || data.devices.length === 0) {
+            throw new Error('No devices found or devices array is empty.');
+        }
+        const devices: SpotifyDevice[] = data.devices;
+        const activeDevice = devices.find((device) => device.is_active);
+        if (!activeDevice) {
+            console.error('No active device found. Please open Spotify on any device.');
+            return;
+        }
 
+        return fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDevice.id}`, {
+            method: 'PUT',
+            headers: {
+              Authorization: 'Bearer ' + accessToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ context_uri: playlistUri }),
+        });
+    })
+    .then((res) => {
+      if (!res || !res.ok) {
+          throw new Error(`Failed to start playback, status code: ${res?.status}`);
+      }
+      console.log(`Playback started for emotion: ${emotion}`);
+    })
+    .catch((error) => {
+        console.error('Error:', error.message);
+        // If the error is due to an expired or invalid token, consider refreshing the token or re-authenticating
+    });
+};
+  
+  
   return (
     <>
       <Head>
@@ -470,7 +630,17 @@ const Home: React.FC = () => {
 
       <main className="min-h-screen bg-black text-white">
         <div className="container mx-auto p-4">
-          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px', marginBottom: '60px' }}>Emotion Recognition</h1>
+          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px', marginBottom: '60px' }}>Emotion Recognition (API)</h1>
+          {/* Spotify Authentication Status */}
+          <div className="spotify-auth-status mt-4">
+            <p>Spotify Status: <span className="status">{accessToken ? "Connected" : "Not Connected"}</span></p>
+            {/* Show login button if not connected */}
+            {!accessToken && (
+              <button className="login-btn" onClick={handleSpotifyLogin}>Log in to Spotify</button>
+            )}
+            {/* Show logout button if connected */}
+            {accessToken && <button className="logout-btn" onClick={handleLogout}>Log out</button>}
+          </div>
           <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
             <div className="webcam-container lg:w-1/2 space-y-4">
               <div className="flex flex-row justify-start items-center w-full gap-10 mb-4">

@@ -328,7 +328,7 @@ export default function Home() {
 
       <main className="min-h-screen bg-black text-white">
         <div className="container mx-auto p-4">
-          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition</h1>
+          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition (Pretrained Model)</h1>
 
           <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
             <div className="webcam-container lg:w-1/2 space-y-4">

@@ -9,6 +9,8 @@ import 'chartjs-adapter-date-fns';
 import { parse, parseISO } from 'date-fns';
 import { Bar, Line } from 'react-chartjs-2';
 import { Chart, ChartOptions, registerables } from 'chart.js';
+import Twilio from 'twilio';
+
 
 const Home: React.FC = () => {
   const [isCameraEnabled, setCameraEnabled] = useState<boolean>(false);
@@ -28,6 +30,15 @@ const Home: React.FC = () => {
   const buttonText = isDetecting ? 'Stop Real-Time Detection' : 'Start Real-Time Detection';
   const [chartInstance, setChartInstance] = useState(null);
   const chartRef = useRef<any>(null);
+  const [emotionCounters, setEmotionCounters] = useState({
+    happy: 0,
+    sad: 0,
+    angry: 0,
+    fear: 0,
+    surprise: 0,
+    disgust: 0,
+    neutral: 0,
+  });
 
 
   Chart.register(...registerables);
@@ -44,6 +55,11 @@ const Home: React.FC = () => {
   type EmotionHistoryEntry = {
     timestamp: string;
     emotions: EmotionData;
+  };
+
+  type Emotion = 'happy' | 'sad' | 'angry' | 'fear' | 'surprise' | 'disgust' | 'neutral';
+  type EmotionCounters = {
+    [key in Emotion]: number;
   };
 
   const emotionColors: EmotionColors = {
@@ -116,6 +132,9 @@ const Home: React.FC = () => {
               .withFaceExpressions();
 
             if (detections.length > 0) {
+              detections.forEach((detection, index) => {
+                console.log(`Detection ${index + 1}:`, detection.expressions);
+              });
               const emotions: Emotions = detections.reduce((acc, detection) => {
                 const expressions = detection.expressions as Emotions;
                 for (const [emotion, value] of Object.entries(expressions)) {
@@ -137,6 +156,19 @@ const Home: React.FC = () => {
                 name: maxEmotionName,
                 percentage: maxEmotionValue / detections.length,
               });
+
+              // Update emotion counters based on detections
+              const updateCounters: EmotionCounters = { ...emotionCounters };
+              Object.entries(emotions).forEach(([emotion, value]) => {
+                if (emotion in updateCounters) { // This check ensures emotion is a valid key
+                  updateCounters[emotion as Emotion] += value as number; // Cast is safe due to the check above
+                  console.log(`Updated counter for ${emotion}:`, updateCounters[emotion as Emotion]);
+                }
+              });
+              setEmotionCounters(updateCounters);
+  
+              // Check if any "bad" emotion exceeds the threshold and send an alert
+              checkAndSendAlert(updateCounters);
 
               const labels = Object.keys(emotions) as Array<keyof typeof faceapi.FaceExpressions>;
               const data = labels.map(label => (emotions[label] || 0) / detections.length);
@@ -168,7 +200,7 @@ const Home: React.FC = () => {
         }
       }
     }
-  }, [webcamRef, canvasRef, setEmotionChartData]);
+  }, [webcamRef, canvasRef, emotionCounters, setEmotionCounters, setEmotionChartData]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -185,6 +217,7 @@ const Home: React.FC = () => {
   const handleAction = () => {
     setIsDetecting((prevIsDetecting) => {
       if (prevIsDetecting) {
+        clearCanvas();
         setTimeout(() => setShowModal(true), 500);
       }
       return !prevIsDetecting;
@@ -370,6 +403,63 @@ const Home: React.FC = () => {
       }
     }
   }, []);
+
+  const clearCanvas = () => {
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
+
+  const checkAndSendAlert = (counters: EmotionCounters) => {
+    const badEmotions: (keyof EmotionCounters)[] = ['fear', 'angry', 'sad'];
+    let shouldSendAlert = badEmotions.some(emotion => {
+      let isThresholdExceeded = counters[emotion] > 20;
+      if (isThresholdExceeded) {
+        console.log(`Threshold exceeded for ${emotion}:`, counters[emotion]);
+      }
+      return isThresholdExceeded;
+    });
+  
+    if (shouldSendAlert) {
+      console.log('Sending SMS alert...');
+      sendSmsAlert();
+    } else {
+      console.log('No alert sent. Current counters:', counters);
+    }
+  };
+  
+  
+  const sendSmsAlert = async () => {
+    // Define the message you want to send
+    const messageData = {
+      message: "Alert: A dementia patient has been experiencing distressing emotions for more than 10 seconds. Please check in and provide support as needed."
+    };
+
+    try {
+        // Make a POST request to the Flask backend
+        const response = await fetch('http://localhost:5000/send_sms', { // Adjust the domain as necessary
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(messageData),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('SMS sent successfully:', data);
+        } else {
+            console.error('Failed to send SMS');
+        }
+    } catch (error) {
+        console.error('Error sending SMS:', error);
+    }
+  };
+
 
   return (
     <>

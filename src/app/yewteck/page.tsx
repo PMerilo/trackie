@@ -93,20 +93,47 @@ export default function Home() {
     }
   };
 
-  const sendImageToAPI = async () => {
-    if (selectedFile) {
-      // If a file is selected, use it directly
-      await sendFileToAPI(selectedFile);
-    } else if (webcamRef.current) {
-      // If no file is selected, try to get a screenshot from the webcam
-      const imageSrc = webcamRef.current.getScreenshot();
-      if (imageSrc) {
-        await processImageAndSendToAPI(imageSrc);
+  const sendImageToAPI = async (imageSrc: string | Blob) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      if (typeof imageSrc === 'string') {
+        const base64Response = await fetch(imageSrc);
+        const blob = await base64Response.blob();
+        formData.append('file', blob, 'upload.jpg');
+      } else {
+        formData.append('file', imageSrc, 'upload.jpg');
       }
-    } else {
-      console.error("No image source available for action detection.");
+
+      const response = await fetch(`${FLASK_API_URL}/detect-actions`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json() as ActionData;
+      setActionData(data);
+      const timestamp = new Date().toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore' });
+      setActionHistory((prevHistory) => {
+        const updatedHistory = [
+          ...prevHistory,
+          { timestamp, actions: data }
+        ];
+        return updatedHistory;
+      });
+    } catch (error: any) {
+      setError('Failed to send image to API.');
+      console.error('There was an error sending the image to the API', error);
+    } finally {
+      setLoading(false);
     }
   };
+
   
   // Function to send the file to the API
   const sendFileToAPI = async (file: File | Blob) => {
@@ -140,7 +167,7 @@ export default function Home() {
     try {
       const base64Response = await fetch(imageSrc);
       const blob = await base64Response.blob();
-      await sendImageToAPI();
+      await sendImageToAPI(blob);
     } catch (error) {
       console.error('Error in processImageAndSendToAPI:', error);
     }
@@ -159,6 +186,7 @@ export default function Home() {
       console.error('Webcam not available for real-time detection.');
     }
   };
+
 
   const stopRealTimeDetection = () => {
     if (intervalId) {
@@ -410,16 +438,10 @@ export default function Home() {
               <div className="flex justify-center mt-4 space-x-2">
                 <button
                   className={`text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 w-full transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
-                  onClick={toggleRealTimeDetection}
+                  onClick={handleAction}
+                  disabled={!isCameraEnabled}
                 >
                   {isDetecting ? "Stop Real-Time Detection" : "Start Real-Time Detection"}
-                </button>
-                <button
-                  onClick={() => sendImageToAPI()}
-                  className={`text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 w-full transition duration-200`}
-                  disabled={!selectedFile}
-                >
-                  Analyze Image
                 </button>
               </div>
             </div>

@@ -1,20 +1,64 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { links } from '../links';
-
 // Updated navigation links, assuming the same structure
+enum VoiceModels {
+  "SVM" = "SVM",
+  "BERT" = "BERT",
+  "Google" = "Google"
+}
+
+const getState = async () => {
+  const res = await fetch(`/api/ai`, {
+    method: "get",
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!res.ok) return
+
+  return await res.json()
+};
 
 export default function TogglePrediction() {
   const [predictionState, setPredictionState] = useState(false); // false for stopped, true for started
   const [activeLink, setActiveLink] = useState('AI Settings');
+  
+  const [selectedVoice, setSelectedVoice] = useState("Select")
 
-  const togglePrediction = () => {
-    fetch
+  const [loading, setLoading] = useState(true);
 
 
+  const togglePrediction = async () => {
+    setLoading(true)
+    const res = await fetch(`/api/ai`, {
+      method: "post",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: selectedVoice,
+        state: `${!predictionState}`
+      })
+      
+    });
+    
+    if (!res.ok) return
+    setLoading(false)
     setPredictionState(!predictionState);
   };
 
+  useEffect(() => {
+    getState()
+    .then(({ state, model }) => {
+      console.log({ state, model })
+      setPredictionState(!state)
+      setSelectedVoice(model)
+      setLoading(false)
+    })
+  }, [])
+  
   return (
     <main className="bg-black p-10 min-h-screen text-gray-300 flex">
       {/* Sidebar */}
@@ -45,25 +89,42 @@ export default function TogglePrediction() {
         <div className="mb-8 flex items-center">
           <div
             className={`w-4 h-4 rounded-full mr-3 ${
+              loading ? 'bg-yellow-400' :
               predictionState ? 'bg-green-400' : 'bg-red-400'
             }`}
           ></div>
           <h3 className="text-xl text-blue-400">System Status:</h3>
           <p className={`text-lg font-semibold ml-2 ${predictionState ? 'text-green-400' : 'text-red-400'}`}>
-            {predictionState ? 'Detection Active' : 'Detection Stopped'}
+            { loading ? 
+              'Loading status':
+              predictionState ? 'Detection Active' : 'Detection Stopped'
+            }
           </p>
         </div>
-
-        {/* Toggle Button */}
-        <button
-          onClick={togglePrediction}
-          className={`px-8 py-2 rounded font-bold transition-all ease-in-out duration-300 outline-none focus:outline-none shadow-lg ${
-            predictionState ? 'bg-red-600 hover:bg-red-700 hover:shadow-red-600/50' : 'bg-green-600 hover:bg-green-700 hover:shadow-green-600/50'
-          } text-white transform hover:-translate-y-1`}
-        >
-          {predictionState ? 'Stop Detection' : 'Start Detection'}
-        </button>
-
+        <div className='flex gap-x-4 items-end'>
+          <div className='flex flex-col'>
+            <h5 className='text-bold text-lg mb-2'>Voice Model</h5>
+            <select value={selectedVoice} className={"select select-bordered w-full max-w-xs bg-blue-600 text-white disabled:bg-base-200"} disabled={predictionState || loading} onChange={e => setSelectedVoice(e.target.value)}>
+              <option value={"Select"} disabled>Select Voice Model</option>
+              <option value={VoiceModels.SVM} >SVM (Low Accuracy)</option>
+              <option value={VoiceModels.BERT}>BERT</option>
+              <option value={VoiceModels.Google}>Google (High Accuratcy)</option>
+            </select>
+          </div>
+          {/* Toggle Button */}
+          <button
+            disabled={!selectedVoice || loading}
+            onClick={togglePrediction}
+            className={`btn rounded-md font-bold transition-all ease-in-out duration-300 outline-none focus:outline-none shadow-lg ${
+              predictionState ? 'bg-red-600 hover:bg-red-700 hover:shadow-red-600/50' : 'bg-green-600 hover:bg-green-700 hover:shadow-green-600/50'
+            } text-white transform hover:-translate-y-1`}
+          >
+            { loading ?
+              <span className="loading loading-spinner loading-sm"></span> :
+              predictionState ? 'Stop Detection' : 'Start Detection'
+            }
+          </button>
+        </div>
         {/* Additional Information */}
         <div className="mt-8">
           <h4 className="text-2xl text-white mb-4">About the Detection System</h4>

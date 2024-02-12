@@ -37,7 +37,7 @@ const Navbar = () => {
                   <a href="/user/settings" className="block py-2 px-4 text-sm text-gray-200 hover:bg-gray-600">Settings</a>
                 </li>
                 <li>
-                  <a href="/user/model" className="block py-2 px-4 text-sm text-gray-200 hover:bg-gray-600">Model</a>
+                  <a href="/user/ai" className="block py-2 px-4 text-sm text-gray-200 hover:bg-gray-600">AI</a>
                 </li>
                 <li>
                   <a href="#" className="block py-2 px-4 text-sm text-gray-200 hover:bg-gray-600">Login</a>

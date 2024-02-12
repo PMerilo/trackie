@@ -3,31 +3,57 @@
 import { Bar } from 'react-chartjs-2';
 import { Chart, ChartOptions, registerables } from 'chart.js';
 import Viewer from './components/viewer'
+import { useEffect, useState } from 'react';
+import { Speechbubble } from './components/Speechbubble';
 
 Chart.register(...registerables);
 
 type FlexDirection = 'row' | 'row-reverse' | 'column' | 'column-reverse';
 
+async function getTranscripts() {
+  const res = await fetch(`/api/user/transcripts`)
+  if (!res.ok) {
+      throw new Error('Failed to fetch data')
+  }
+  return await res.json()
+}
+
 const App = () => {
+  const [transcripts, setTranscripts] = useState<{transcript: string, timestamp: Date, predict:boolean}[]>([])
+
+  useEffect(() => {
+    getTranscripts()
+    .then((data) => [
+      
+      setTranscripts(data.map((msg: {transcript: string, timestamp: string, predict:string}) => {
+        return {
+            ...msg,
+            predict: msg.predict=="Positive",
+            timestamp: new Date('2024-02-13 00:11:14.185802')
+        }
+      }))
+    ])
+  }, [])
+
   // Fake speech bubbles (you would replace this with your actual transcription data)
-  const speechBubbles = [
-    { text: "Hello, how are you doing today?", time: "00:10" },
-    { text: "I'm doing great, thanks for asking!", time: "00:15" },
-    { text: "What's the weather like over there?", time: "00:20" },
-    { text: "It's raining cats and dogs here!", time: "00:25" },
-    { text: "Do you want to grab lunch later?", time: "00:30" },
-    { text: "Sure, let's meet at 1 PM.", time: "00:35" },
-    { text: "Sounds good! See you then.", time: "00:40" },
-    { text: "Can you please send me the report?", time: "00:45" },
-    { text: "Sure, I'll send it right away.", time: "00:50" },
-    { text: "Thanks a lot!", time: "00:55" },
-  ];
+  // const transcripts = [
+  //   { text: "Hello, how are you doing today?", time: "00:10" },
+  //   { text: "I'm doing great, thanks for asking!", time: "00:15" },
+  //   { text: "What's the weather like over there?", time: "00:20" },
+  //   { text: "It's raining cats and dogs here!", time: "00:25" },
+  //   { text: "Do you want to grab lunch later?", time: "00:30" },
+  //   { text: "Sure, let's meet at 1 PM.", time: "00:35" },
+  //   { text: "Sounds good! See you then.", time: "00:40" },
+  //   { text: "Can you please send me the report?", time: "00:45" },
+  //   { text: "Sure, I'll send it right away.", time: "00:50" },
+  //   { text: "Thanks a lot!", time: "00:55" },
+  // ];
 
   // Styles
   const appContainerStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
+    height: '120vh',
     padding: '20px',
     color: '#EAEAEA',
     fontFamily: 'Roboto, sans-serif', // Modern font
@@ -131,7 +157,7 @@ const App = () => {
     flexDirection: 'column',
     flex: 1,
     overflowY: 'auto', // Only the message section is scrollable
-    maxHeight: '39vh', // Adjust as needed
+    maxHeight: '70vh', // Adjust as needed
     boxShadow: '0 4px 8px 0 rgba(0,0,0,0.2)',
     border: '2px solid #4A4A4A', // Adding a border here
   };
@@ -165,12 +191,13 @@ const App = () => {
 
           {/* Audio Transcription Section */}
           <div className="audio-transcription-container" style={audioTranscriptionContainerStyle}>
-            {speechBubbles.map((bubble, index) => (
-              <div key={index} style={speechBubbleStyle}>
-                <span>{bubble.text}</span>
-                <br />
-                <span style={{ fontSize: '0.8em' }}>{bubble.time}</span>
-              </div>
+            {transcripts.map((t, index) => (
+              // <div key={index} style={speechBubbleStyle}>
+              //   <span>{bubble.transcript}</span>
+              //   <br />
+              //   <span style={{ fontSize: '0.4em' }}>{bubble.timestamp.toLocaleString()}</span>
+              // </div>
+              <Speechbubble content={t.transcript} timestamp={t.timestamp.toLocaleString()} prediction={t.predict} key={index}/>
             ))}
           </div>
         </div>

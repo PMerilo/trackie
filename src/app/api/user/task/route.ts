@@ -20,7 +20,7 @@ export async function PUT(request: Request) {
 
   const body = await request.json()
   const t: TaskInput = body["task"]
-  console.log(t);
+  // console.log(t);
 
   if (!t) return Response.json({ error: "task is undefined" }, { status: 400 })
 
@@ -37,6 +37,21 @@ export async function PUT(request: Request) {
   }
 
   const createTask = await prisma.task.create({ data: task })
+
+  const hobbyId = body["hobbyId"]
+  const data = {
+    id: parseInt(session!.user.id),
+    hobbies: [ hobbyId ]
+  }
+  // console.log(data)
+  fetch(`${process.env.FLASK_SERVER_URL || "http://127.0.0.1:5000"}/nicole/add-hobbies`, {
+      method: 'post',
+      headers: {
+          'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data),
+  })
+  // .then((res) => res.text())
   
   return Response.json(createTask)
 }

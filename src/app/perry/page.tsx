@@ -1,6 +1,6 @@
 'use client'
 
-import { Speechbubble } from "./components/Speechbubble"
+import { Speechbubble } from "../caretaker/components/Speechbubble"
 import { Recorder } from "./components/Recorder"
 import { useEffect, useRef, useState } from "react"
 

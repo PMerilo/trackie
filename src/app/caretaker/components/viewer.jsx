@@ -60,7 +60,7 @@ export default function Viewer(props) {
 
     async function connect(media) {
         const pc = await PeerConnection(media);
-        const url = new URL('api/ws' + "?src=tapo1&media=video+audio", "http://localhost:1984/");
+        const url = new URL('api/ws' + "?src=phone&media=video+audio", "http://localhost:1984/");
         const ws = new WebSocket('ws' + url.toString().substring(4));
 
         ws.addEventListener('open', () => {

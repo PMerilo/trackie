@@ -32,10 +32,11 @@ export default function TaskDrawer({
 } : {
     tasks : TaskWithSteps[],
 }) {
-
+    
     const [taskList, setTaskList] = useState<TaskWithSteps[]>(tasks)
 
     const [title, setTitle] = useState('')
+    const [hobbyId, setHobbyId] = useState<number | undefined>(undefined)
     const [activity, setActivity] = useState<Activity>(Activity.List)
     const [reccos, setReccos] = useState<{ name: string, hobbyId: number }[]>([])
 
@@ -73,7 +74,6 @@ export default function TaskDrawer({
         .then(() => setTaskList(taskList.filter((t) => id != t.id)))
     }
 
-
     useEffect(() => {
         if (activity == Activity.Add && reccos.length == 0) getRecommendations().then((reco : { name: string, hobbyId: number }[]) => setReccos(reco))
     }, [activity])
@@ -89,13 +89,13 @@ export default function TaskDrawer({
                     { reccos.length > 0 ? 
                     <>
                         { [...reccos].splice(Math.floor(Math.random() * 9), 2).map((tile) => (
-                            <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setTitle(tile.name); setActivity(Activity.Custom)}}>
+                            <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setHobbyId(tile.hobbyId); setTitle(tile.name); setActivity(Activity.Custom)}}>
                                 <div className="card-body items-center text-center">
                                     <h2 className="card-title">{tile.name}</h2>
                                 </div>
                             </div>
                         )) }
-                        <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setTitle(''); setActivity(Activity.Custom)}}>
+                        <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setHobbyId(undefined); setTitle(''); setActivity(Activity.Custom)}}>
                             <div className="card-body items-center text-center">
                                 <h2 className="card-title">I would like to do something else</h2>
                             </div>
@@ -110,7 +110,7 @@ export default function TaskDrawer({
         case Activity.Custom:
             return (
                 <Wrapper>
-                    <TaskAddCustom defaultTitle={title} activityHandler={setActivity} onAdd={(task: TaskWithSteps) => setTaskList([...taskList, task])}></TaskAddCustom>
+                    <TaskAddCustom defaultTitle={title} defaultHobbyId={hobbyId} activityHandler={setActivity} onAdd={(task: TaskWithSteps) => setTaskList([...taskList, task])}></TaskAddCustom>
                 </Wrapper>
             )
     

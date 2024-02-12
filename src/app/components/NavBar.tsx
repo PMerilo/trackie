@@ -11,7 +11,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-black px-2 sm:px-4 py-2.5 rounded-md absolute inset-x-0 top-0">
+    <nav className="bg-black px-2 sm:px-4 py-2.5 rounded-md">
       <div className="container flex flex-wrap gap-x-40 justify-evenly items-center mx-auto px-64">
         <Link href="/" className='p-2.5'>
           <span className="flex items-center cursor-pointer">

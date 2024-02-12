@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import './globals.css'
 import Navbar from './components/NavBar'
+import Chatbot from './components/Chatbot'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,9 +23,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <Navbar />
         <Providers>
-          <div className='mt-[104px]'>
+          <div className=''>
             {children}
           </div>
+          <Chatbot></Chatbot>
         </Providers>
       </body>
     </html>

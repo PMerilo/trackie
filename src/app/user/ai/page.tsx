@@ -6,9 +6,12 @@ import { links } from '../links';
 
 export default function TogglePrediction() {
   const [predictionState, setPredictionState] = useState(false); // false for stopped, true for started
-  const [activeLink, setActiveLink] = useState('Toggle Prediction');
+  const [activeLink, setActiveLink] = useState('AI Settings');
 
   const togglePrediction = () => {
+    fetch
+
+
     setPredictionState(!predictionState);
   };
 

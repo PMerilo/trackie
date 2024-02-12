@@ -22,7 +22,7 @@ export async function PUT(request: Request) {
   const t: TaskInput = body["task"]
   console.log(t);
 
-  if (!t) return Response.json({ error: "task is undefined" }, { status: 403 })
+  if (!t) return Response.json({ error: "task is undefined" }, { status: 400 })
 
 
   task = {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const body = await request.json()
   const t: TaskInput = body["task"]
 
-  if (!t) return Response.json({ error: "task is undefined" }, { status: 403 })
+  if (!t) return Response.json({ error: "task is undefined" }, { status: 400 })
 
 
   task = {
@@ -75,7 +75,7 @@ export async function DELETE(request: Request) {
   const body = await request.json()
   const id: number = body["task"]["id"]
 
-  if (!id) return Response.json({ error: "id is undefined" }, { status: 403 })
+  if (!id) return Response.json({ error: "id is undefined" }, { status: 400 })
 
   const deleteSteps = prisma.step.deleteMany({
     where: {

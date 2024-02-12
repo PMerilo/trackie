@@ -19,7 +19,7 @@ export async function PUT(request: Request) {
   const body = await request.json()
   const s: StepInput = body["step"]
 
-  if (!s) return Response.json({ error: "step is undefined" }, { status: 403 })
+  if (!s) return Response.json({ error: "step is undefined" }, { status: 400 })
 
   step = {
     content: s.content,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const body = await request.json()
   const s: StepInput = body["step"]
 
-  if (!s) return Response.json({ error: "step is undefined" }, { status: 403 })
+  if (!s) return Response.json({ error: "step is undefined" }, { status: 400 })
 
   step = {
     content: s.content,
@@ -66,7 +66,7 @@ export async function DELETE(request: Request) {
   const body = await request.json()
   const id: number= body["step"]["id"]
 
-  if (!id) return Response.json({ error: "id is undefined" }, { status: 403 })
+  if (!id) return Response.json({ error: "id is undefined" }, { status: 400 })
 
   const deleteStep = await prisma.step.delete({
     where: {

@@ -12,6 +12,15 @@ type TaskInput = {
   steps: StepInput[]
 }
 
+const dateToCron = (date) => {
+  const minutes = date.minute();
+  const hours = date.hour();
+  const days = date.date();
+  const months = date.month() + 1;
+  const dayOfWeek = date.day();
+
+  return `${minutes} ${hours} ${days} ${months} ${dayOfWeek}`;
+};
 
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions)
@@ -37,7 +46,6 @@ export async function PUT(request: Request) {
     }
   }
   const nodemailer = require("nodemailer");
-  const moment = require('moment');
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -45,10 +53,10 @@ export async function PUT(request: Request) {
       pass: "hudlptwfwfvchplh",
     },
   });
-  const schedule = require('node-schedule');
+  var schedule = require('node-schedule');
+  var moment = require('moment');
   const createTask = await prisma.task.create({ data: task })
-  const date = moment(task.time);
-
+  const date = moment(task.time).utcOffset(0);
   var mailOptions = {
     from: "ginsengandstitch@gmail.com", // sender address
     to: session?.user.email, // list of receivers
@@ -57,21 +65,26 @@ export async function PUT(request: Request) {
     html: `<b>Hi, you have planned to do ${task.title} at ${date}</b>`,
   };
 
-  transporter.sendMail(mailOptions, function(error, info){
+  const cron = dateToCron(date);
+  console.log(cron)
+  const job = schedule.scheduleJob(cron, () => 
+  {
+    transporter.sendMail(mailOptions, function(error, info){
     if (error) {
       console.log(error);
     } else {
       console.log('Email sent: ' + info.response);
     }
-  });
-
+  })
+  console.log("hello")
+})
   const hobbyId = body["hobbyId"]
   const data = {
     id: parseInt(session!.user.id),
     hobbies: [ hobbyId ]
   }
   // console.log(data)
-  fetch(`${process.env.FLASK_SERVER_URL || "http://localhost:32769"}/nicole/add-hobbies`, {
+  fetch(`${process.env.FLASK_SERVER_URL || "http://127.0.0.1:5000"}/nicole/add-hobbies`, {
       method: 'post',
       headers: {
           'Content-Type': 'application/json'

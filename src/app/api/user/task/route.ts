@@ -12,6 +12,7 @@ type TaskInput = {
   steps: StepInput[]
 }
 
+
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return Response.json({ error: "Not Authorized" }, { status: 401 })
@@ -35,8 +36,34 @@ export async function PUT(request: Request) {
       connect: { id: parseInt(session.user.id) }
     }
   }
-
+  const nodemailer = require("nodemailer");
+  const moment = require('moment');
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: "ginsengandstitch@gmail.com",
+      pass: "hudlptwfwfvchplh",
+    },
+  });
+  const schedule = require('node-schedule');
   const createTask = await prisma.task.create({ data: task })
+  const date = moment(task.time);
+
+  var mailOptions = {
+    from: "ginsengandstitch@gmail.com", // sender address
+    to: session?.user.email, // list of receivers
+    subject: "Reminder for your task", // Subject line
+    text: "Helllo" + session?.user.name, // plain text body
+    html: `<b>Hi, you have planned to do ${task.title} at ${date}</b>`,
+  };
+
+  transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  });
 
   const hobbyId = body["hobbyId"]
   const data = {
@@ -44,7 +71,7 @@ export async function PUT(request: Request) {
     hobbies: [ hobbyId ]
   }
   // console.log(data)
-  fetch(`${process.env.FLASK_SERVER_URL || "http://127.0.0.1:5000"}/nicole/add-hobbies`, {
+  fetch(`${process.env.FLASK_SERVER_URL || "http://localhost:32769"}/nicole/add-hobbies`, {
       method: 'post',
       headers: {
           'Content-Type': 'application/json'

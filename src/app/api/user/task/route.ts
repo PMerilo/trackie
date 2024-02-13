@@ -12,6 +12,16 @@ type TaskInput = {
   steps: StepInput[]
 }
 
+const dateToCron = (date) => {
+  const minutes = date.minute();
+  const hours = date.hour();
+  const days = date.date();
+  const months = date.month() + 1;
+  const dayOfWeek = date.day();
+
+  return `${minutes} ${hours} ${days} ${months} ${dayOfWeek}`;
+};
+
 export async function PUT(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return Response.json({ error: "Not Authorized" }, { status: 401 })
@@ -35,9 +45,39 @@ export async function PUT(request: Request) {
       connect: { id: parseInt(session.user.id) }
     }
   }
-
+  const nodemailer = require("nodemailer");
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: "ginsengandstitch@gmail.com",
+      pass: "hudlptwfwfvchplh",
+    },
+  });
+  var schedule = require('node-schedule');
+  var moment = require('moment');
   const createTask = await prisma.task.create({ data: task })
+  const date = moment(task.time).utcOffset(0);
+  var mailOptions = {
+    from: "ginsengandstitch@gmail.com", // sender address
+    to: session?.user.email, // list of receivers
+    subject: "Reminder for your task", // Subject line
+    text: "Helllo" + session?.user.name, // plain text body
+    html: `<b>Hi, you have planned to do ${task.title} at ${date}</b>`,
+  };
 
+  const cron = dateToCron(date);
+  console.log(cron)
+  const job = schedule.scheduleJob(cron, () => 
+  {
+    transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  })
+  console.log("hello")
+})
   const hobbyId = body["hobbyId"]
   const data = {
     id: parseInt(session!.user.id),

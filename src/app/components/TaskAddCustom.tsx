@@ -2,7 +2,6 @@ import { FormEvent, useState } from "react"
 import { StepInput } from "../api/user/step/route"
 import TaskStep from "./TaskStep"
 import { Activity, TaskWithSteps } from "./TaskDrawer"
-import { Prisma } from "@prisma/client"
 
 export default function TaskAddCustom({ defaultTitle, defaultHobbyId, activityHandler, onAdd } : { defaultTitle:string, defaultHobbyId?:number, activityHandler: Function, onAdd: Function }) {
     const [title, setNewTitle] = useState(defaultTitle)

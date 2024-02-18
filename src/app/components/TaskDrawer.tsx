@@ -88,8 +88,8 @@ export default function TaskDrawer({
 
                     { reccos.length > 0 ? 
                     <>
-                        { [...reccos].splice(Math.floor(Math.random() * 9), 2).map((tile) => (
-                            <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setHobbyId(tile.hobbyId); setTitle(tile.name); setActivity(Activity.Custom)}}>
+                        { [...reccos].splice(Math.floor(Math.random() * 9), 2).map((tile, i) => (
+                            <div className="card w-full bg-base-200 cursor-pointer" onClick={() => {setHobbyId(tile.hobbyId); setTitle(tile.name); setActivity(Activity.Custom)}} key={i}>
                                 <div className="card-body items-center text-center">
                                     <h2 className="card-title">{tile.name}</h2>
                                 </div>
@@ -117,7 +117,7 @@ export default function TaskDrawer({
         default:
             return (
                 <Wrapper>
-                    { tasks.map((t, i) => <TaskCard task={t} key={i}/>) }
+                    { tasks.map((t, i) => <TaskCard onDelete={delTask} task={t} key={i}/>) }
                     <div className="card w-full glass hover:animate-pulse cursor-pointer" onClick={() => setActivity(Activity.Add)}>
                         <div className="card-body items-center text-center">
                             <h1 className="card-title">Add new task +</h1>

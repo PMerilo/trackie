@@ -33,8 +33,6 @@ export default function Login() {
       });
 
       setLoading(false);
-
-      // console.log(res);
       if (!res?.error) {        
         router.push(callbackUrl);
       } else {
@@ -80,7 +78,7 @@ export default function Login() {
           }
           <div className="card-actions w-full mt-6">
             <button className="btn btn-primary btn-block" type="submit" form="Login">{loading ? <span className="loading loading-dots loading-sm"></span> : "Sign In"}</button>
-            <p className="mt-2">Don't have an account? <Link className="link text-blue-500" href="/auth/signup">Sign Up</Link></p>
+            <p className="mt-2">Don&apos;t have an account? <Link className="link text-blue-500" href="/auth/signup">Sign Up</Link></p>
           </div>
         </div>
       </div>

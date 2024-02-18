@@ -6,7 +6,7 @@ import { Prisma, Step } from "@prisma/client";
 import TaskStep from "@/app/components/TaskStep";
 import { TaskWithSteps } from "./TaskDrawer";
 
-export default function TaskCard({ task }: { task: TaskWithSteps }) {
+export default function TaskCard({ task, onDelete }: { task: TaskWithSteps, onDelete: Function }) {
   const [steps, setSteps] = useState<StepInput[]>(task.steps);
 
   function stepApi(method: string, step: object) {
@@ -90,12 +90,7 @@ export default function TaskCard({ task }: { task: TaskWithSteps }) {
             >
               Edit
             </button>
-            <button
-              className="btn btn-error"
-              onClick={() => console.log("test")}
-            >
-              Delete
-            </button>
+            <button className="btn btn-error" onClick={() => onDelete()}>Delete</button>
           </div>
         </div>
       </div>

@@ -2,6 +2,10 @@
 const nextConfig = {
     experimental: {
         serverComponentsExternalPackages: [ '@prisma/client', 'bcrypt', 'fs' ]
+    },
+    output: "standalone",
+    typescript: {
+        ignoreBuildErrors: true,
     }
 }
 

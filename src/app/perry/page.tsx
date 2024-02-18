@@ -22,7 +22,7 @@ export default function Home() {
         </div>
         <div className="flex h-full flex-grow card bg-base-300 rounded-box p-4 overflow-y-scroll" ref={messages}>
           { 
-            resultList && Array.from(Array(resultList.length).keys()).map((index) => <Speechbubble key={index} content={resultList[index][0].transcript}/>)
+            resultList && Array.from(Array(resultList.length).keys()).map((index) => <Speechbubble key={index} content={resultList[index][0].transcript} timestamp={undefined} prediction={undefined}/>)
           }
         </div>
       </div>

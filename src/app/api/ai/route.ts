@@ -1,4 +1,4 @@
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from '@/lib/authOptions'
 import { getServerSession } from "next-auth/next"
 
 export async function POST(request: Request) {

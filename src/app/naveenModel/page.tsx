@@ -26,7 +26,7 @@
 //   [key in keyof EmotionData]?: string;
 // };
 
-// export default function Home() {
+export default function Model() {
 //   const FLASK_API_URL = process.env.REACT_APP_FLASK_API_URL || 'http://127.0.0.1:5000/';
 //   const [isCameraEnabled, setCameraEnabled] = useState(false);
 //   const [emotionData, setEmotionData] = useState<EmotionData | null>(null);
@@ -319,123 +319,122 @@
 //     }
 //   };
 
-//   return (
-//     <>
-//       <Head>
-//         <title>Emotion Recognition</title>
-//         <link rel="icon" href="/favicon.ico" />
-//       </Head>
+  return (
+    <>
+      {/* <Head>
+        <title>Emotion Recognition</title>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
 
-//       <main className="min-h-screen bg-black text-white">
-//         <div className="container mx-auto p-4">
-//           <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition (Pretrained Model)</h1>
+      <main className="min-h-screen bg-black text-white">
+        <div className="container mx-auto p-4">
+          <h1 className="text-5xl font-bold text-center mb-6" style={{ marginTop: '40px' }}>Emotion Recognition (Pretrained Model)</h1>
 
-//           <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
-//             <div className="webcam-container lg:w-1/2 space-y-4">
-//               <div className="flex flex-row justify-between items-center w-full mb-4">
-//                 <label className="flex items-center space-x-2 cursor-pointer">
-//                   <input type="checkbox" className="checkbox checkbox-primary" checked={isCameraEnabled} onChange={() => setCameraEnabled(!isCameraEnabled)} />
-//                   <span>Camera</span>
-//                   {/* <VideoCameraIcon className="h-6 w-6 text-blue-500" /> */}
-//                 </label>
-//               </div>
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-8 mt-6 lg:mt-24">
+            <div className="webcam-container lg:w-1/2 space-y-4">
+              <div className="flex flex-row justify-between items-center w-full mb-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="checkbox checkbox-primary" checked={isCameraEnabled} onChange={() => setCameraEnabled(!isCameraEnabled)} />
+                  <span>Camera</span>
+                  <VideoCameraIcon className="h-6 w-6 text-blue-500" />
+                </label>
+              </div>
 
-//               <div className="webcam-style w-full rounded overflow-hidden" style={{ height: '420px' }}>
-//                 {isCameraEnabled ? (
-//                   <></>
-//                   // <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" width="100%" />
-//                 ) : (
-//                   <div className="bg-gray-700 flex justify-center items-center w-full h-full">
-//                     <span>Click on Camera to enable Webcam</span>
-//                   </div>
-//                 )}
-//               </div>
+              <div className="webcam-style w-full rounded overflow-hidden" style={{ height: '420px' }}>
+                {isCameraEnabled ? (
+                  <></>
+                ) : (
+                  <div className="bg-gray-700 flex justify-center items-center w-full h-full">
+                    <span>Click on Camera to enable Webcam</span>
+                  </div>
+                )}
+              </div>
 
-//               <div className="file-upload w-full">
-//                 <button 
-//                   className={`text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 w-full transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
-//                   onClick={handleAction}
-//                   disabled={!isCameraEnabled}
-//                 >
-//                   {buttonText}
-//                 </button>
-//               </div>
-//             </div>
+              <div className="file-upload w-full">
+                <button 
+                  className={`text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 w-full transition duration-200 ${isDetecting ? 'from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700' : ''}`}
+                  onClick={handleAction}
+                  disabled={!isCameraEnabled}
+                >
+                  {buttonText}
+                </button>
+              </div>
+            </div>
 
-//             <div className="prediction-container lg:w-1/2" style={{ marginTop: '40px' }}>
-//               <div className="graphical-visualization rounded-lg border border-white shadow-2xl overflow-hidden" style={{ height: '420px', width: '100%', maxWidth: '720px' }}>
-//                 <h2 className="text-xl font-semibold text-center mt-2 mb-4">Predicted Emotion: {highestEmotionName ? `${highestEmotionName} (${(highestEmotionPercentage * 100).toFixed(2)}%)` : 'Calculating...'}</h2>
-//                 {emotionData ? (
-//                   <Bar data={getChartData(emotionData)} options={options} />
-//                 ) : (
-//                   <span className="flex justify-center">No emotion detected yet.</span>
-//                 )}
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//         {showModal && (
-//           <>
-//             <div style={{
-//               position: 'fixed',
-//               top: '50%',
-//               left: '50%',
-//               transform: 'translate(-50%, -50%)',
-//               backgroundColor: 'white',
-//               padding: '40px',
-//               zIndex: 1050,
-//               width: '80%',
-//               maxWidth: '900px',
-//               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-//               borderRadius: '8px',
-//               textAlign: 'center'
-//             }}>
-//               <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Emotion Over Time</h2>
-//               <Line key={emotionHistory.length} data={chartData2} options={options2} />
-//               <button onClick={() => setShowModal(false)} style={{ color: 'red', fontSize: '16px', padding: '10px 20px', cursor: 'pointer', marginTop: '20px' }}>
-//                 Close
-//               </button>
-//             </div>
-//             <div style={{
-//               position: 'fixed',
-//               top: 0,
-//               left: 0,
-//               right: 0,
-//               bottom: 0,
-//               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-//               zIndex: 1000
-//             }} onClick={() => setShowModal(false)}></div>
-//           </>
-//         )}
-//       </main>
-//       <style jsx>{`
-//         .webcam-style {
-//           position: relative;
-//           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-//         }
+            <div className="prediction-container lg:w-1/2" style={{ marginTop: '40px' }}>
+              <div className="graphical-visualization rounded-lg border border-white shadow-2xl overflow-hidden" style={{ height: '420px', width: '100%', maxWidth: '720px' }}>
+                <h2 className="text-xl font-semibold text-center mt-2 mb-4">Predicted Emotion: {highestEmotionName ? `${highestEmotionName} (${(highestEmotionPercentage * 100).toFixed(2)}%)` : 'Calculating...'}</h2>
+                {emotionData ? (
+                  <Bar data={getChartData(emotionData)} options={options} />
+                ) : (
+                  <span className="flex justify-center">No emotion detected yet.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        {showModal && (
+          <>
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'white',
+              padding: '40px',
+              zIndex: 1050,
+              width: '80%',
+              maxWidth: '900px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Emotion Over Time</h2>
+              <Line key={emotionHistory.length} data={chartData2} options={options2} />
+              <button onClick={() => setShowModal(false)} style={{ color: 'red', fontSize: '16px', padding: '10px 20px', cursor: 'pointer', marginTop: '20px' }}>
+                Close
+              </button>
+            </div>
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 1000
+            }} onClick={() => setShowModal(false)}></div>
+          </>
+        )}
+      </main>
+      <style jsx>{`
+        .webcam-style {
+          position: relative;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-//         .checkbox-primary:checked + svg {
-//           color: #3ABFF8;
-//         }
+        .checkbox-primary:checked + svg {
+          color: #3ABFF8;
+        }
 
-//         .checkbox-primary:checked + span {
-//           color: #3ABFF8;
-//         }
+        .checkbox-primary:checked + span {
+          color: #3ABFF8;
+        }
 
-//         .graphical-visualization {
-//           position: relative;
-//           overflow: hidden;
-//           border-radius: 12px;
-//           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-//         }
+        .graphical-visualization {
+          position: relative;
+          overflow: hidden;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-//         @media (max-width: 768px) {
-//           .webcam-style, .graphical-visualization {
-//             width: 100%;
-//             margin-bottom: 1rem;
-//           }
-//         }
-//       `}</style>
-//     </>
-//   );  
-// }
+        @media (max-width: 768px) {
+          .webcam-style, .graphical-visualization {
+            width: 100%;
+            margin-bottom: 1rem;
+          }
+        }
+      `}</style> */}
+    </>
+  );  
+}

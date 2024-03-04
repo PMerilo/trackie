@@ -1,8 +1,11 @@
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { authOptions } from '@/lib/authOptions'
 import { prisma } from "@/lib/db"
 import { Prisma } from "@prisma/client"
 import { getServerSession } from "next-auth/next"
 import { StepInput } from "../step/route"
+import moment from 'moment'
+import nodemailer from 'nodemailer'
+import schedule from 'node-schedule'
 
 type TaskInput = {
   title: string,
@@ -12,7 +15,7 @@ type TaskInput = {
   steps: StepInput[]
 }
 
-const dateToCron = (date) => {
+const dateToCron = (date: moment.Moment) => {
   const minutes = date.minute();
   const hours = date.hour();
   const days = date.date();
@@ -45,7 +48,6 @@ export async function PUT(request: Request) {
       connect: { id: parseInt(session.user.id) }
     }
   }
-  const nodemailer = require("nodemailer");
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -53,8 +55,6 @@ export async function PUT(request: Request) {
       pass: "hudlptwfwfvchplh",
     },
   });
-  var schedule = require('node-schedule');
-  var moment = require('moment');
   const createTask = await prisma.task.create({ data: task })
   const date = moment(task.time).utcOffset(0);
   var mailOptions = {
@@ -69,7 +69,7 @@ export async function PUT(request: Request) {
   console.log(cron)
   const job = schedule.scheduleJob(cron, () => 
   {
-    transporter.sendMail(mailOptions, function(error, info){
+    transporter.sendMail(mailOptions, function(error: any, info: { response: string }){
     if (error) {
       console.log(error);
     } else {

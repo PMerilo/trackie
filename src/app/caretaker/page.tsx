@@ -265,88 +265,88 @@ const App = () => {
     wordWrap: 'break-word',
   };
 
-  function emotionAPI() {
-    const imageSrc = webcamRef.current.getScreenshot();
-    if (imageSrc) {
-      const img = new Image();
-      img.onload = async () => {
-        const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks()
-          .withFaceExpressions();
-          console.log('Face detection results:', detections);
+  // function emotionAPI() {
+  //   const imageSrc = webcamRef.current.getScreenshot();
+  //   if (imageSrc) {
+  //     const img = new Image();
+  //     img.onload = async () => {
+  //       const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+  //         .withFaceLandmarks()
+  //         .withFaceExpressions();
+  //         console.log('Face detection results:', detections);
 
-        if (detections.length > 0) {
-          console.log('Faces detected:', detections.length);
-          detections.forEach((detection, index) => {
-            console.log(`Detection ${index + 1}:`, detection.expressions);
-            console.log(`Emotions detected for face ${index + 1}:`, detection.expressions);
-          });
-          const emotions: Emotions = detections.reduce((acc, detection) => {
-            const expressions = detection.expressions as Emotions;
-            for (const [emotion, value] of Object.entries(expressions)) {
-              const emotionKey = emotion as keyof Emotions;
-              acc[emotionKey] = (acc[emotionKey] || 0) + (value as number);
-            }
-            return acc;
-          }, {} as { [key: string]: number });
+  //       if (detections.length > 0) {
+  //         console.log('Faces detected:', detections.length);
+  //         detections.forEach((detection, index) => {
+  //           console.log(`Detection ${index + 1}:`, detection.expressions);
+  //           console.log(`Emotions detected for face ${index + 1}:`, detection.expressions);
+  //         });
+  //         const emotions: Emotions = detections.reduce((acc, detection) => {
+  //           const expressions = detection.expressions as Emotions;
+  //           for (const [emotion, value] of Object.entries(expressions)) {
+  //             const emotionKey = emotion as keyof Emotions;
+  //             acc[emotionKey] = (acc[emotionKey] || 0) + (value as number);
+  //           }
+  //           return acc;
+  //         }, {} as { [key: string]: number });
 
-          let maxEmotionName = '';
-          let maxEmotionValue = 0;
-          Object.entries(emotions).forEach(([key, value]) => {
-            if (value > maxEmotionValue) {
-              maxEmotionValue = value;
-              maxEmotionName = key;
-            }
-          });
-          setHighestEmotion({
-            name: maxEmotionName,
-            percentage: maxEmotionValue / detections.length,
-          });
+  //         let maxEmotionName = '';
+  //         let maxEmotionValue = 0;
+  //         Object.entries(emotions).forEach(([key, value]) => {
+  //           if (value > maxEmotionValue) {
+  //             maxEmotionValue = value;
+  //             maxEmotionName = key;
+  //           }
+  //         });
+  //         setHighestEmotion({
+  //           name: maxEmotionName,
+  //           percentage: maxEmotionValue / detections.length,
+  //         });
 
-          // Update emotion counters based on detections
-          const updateCounters: EmotionCounters = { ...emotionCounters };
-          Object.entries(emotions).forEach(([emotion, value]) => {
-            if (emotion in updateCounters) { // This check ensures emotion is a valid key
-              updateCounters[emotion as Emotion] += value as number; // Cast is safe due to the check above
-              console.log(`Updated counter for ${emotion}:`, updateCounters[emotion as Emotion]);
-            }
-          });
-          setEmotionCounters(updateCounters);
+  //         // Update emotion counters based on detections
+  //         const updateCounters: EmotionCounters = { ...emotionCounters };
+  //         Object.entries(emotions).forEach(([emotion, value]) => {
+  //           if (emotion in updateCounters) { // This check ensures emotion is a valid key
+  //             updateCounters[emotion as Emotion] += value as number; // Cast is safe due to the check above
+  //             console.log(`Updated counter for ${emotion}:`, updateCounters[emotion as Emotion]);
+  //           }
+  //         });
+  //         setEmotionCounters(updateCounters);
 
-          // Check if any "bad" emotion exceeds the threshold and send an alert
-          checkAndSendAlert(updateCounters);
+  //         // Check if any "bad" emotion exceeds the threshold and send an alert
+  //         checkAndSendAlert(updateCounters);
 
-          const labels = Object.keys(emotions) as Array<keyof typeof faceapi.FaceExpressions>;
-          const data = labels.map(label => (emotions[label] || 0) / detections.length);
+  //         const labels = Object.keys(emotions) as Array<keyof typeof faceapi.FaceExpressions>;
+  //         const data = labels.map(label => (emotions[label] || 0) / detections.length);
 
-          setEmotionChartData({ labels, data });
-          setEmotionHistory((prevHistory) => [
-            ...prevHistory,
-            { timestamp: new Date().toISOString(), emotions: emotions },
-          ]);
-        } else {
-          console.log('No faces detected.');
-        }
+  //         setEmotionChartData({ labels, data });
+  //         setEmotionHistory((prevHistory) => [
+  //           ...prevHistory,
+  //           { timestamp: new Date().toISOString(), emotions: emotions },
+  //         ]);
+  //       } else {
+  //         console.log('No faces detected.');
+  //       }
 
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, videoWidth, videoHeight);
+  //       const resizedDetections = faceapi.resizeResults(detections, displaySize);
+  //       const ctx = canvas.getContext('2d');
+  //       if (ctx) {
+  //         ctx.clearRect(0, 0, videoWidth, videoHeight);
 
-          if (showDetections) {
-            faceapi.draw.drawDetections(canvas, resizedDetections);
-          }
-          if (showLandmarks) {
-            faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-          }
-          if (showExpressions) {
-            faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
-          }
-        }
-      };
-      img.src = imageSrc;
-    }
-  }
+  //         if (showDetections) {
+  //           faceapi.draw.drawDetections(canvas, resizedDetections);
+  //         }
+  //         if (showLandmarks) {
+  //           faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+  //         }
+  //         if (showExpressions) {
+  //           faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+  //         }
+  //       }
+  //     };
+  //     img.src = imageSrc;
+  //   }
+  // }
 
   const startRealTimeDetection = (type: string) => {
     const id = setInterval(async () => {
